@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="20260330-1" author="yaskondrichin">
+        <createTable tableName="contacts">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="surname" type="VARCHAR(255)"/>
+            <column name="phone" type="VARCHAR(255)"/>
+            <column name="email" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+    <changeSet id="1775745020409-1" author="yaskondrichin">
+        <createTable tableName="login">
+            <column name="id_log" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="login" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="keycloakId" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pass" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="add-email-to-login-table" author="yaskondrichin">
+        <addColumn tableName="login">
+            <column name="email" type="varchar(255)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="add-email-to-login-fixed" author="yaskondrichin">
+        <addColumn tableName="login">
+            <column name="email" type="varchar(255)"/>
+        </addColumn>
+        <createIndex indexName="idx_login_email_unique" tableName="login" unique="true">
+            <column name="email"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

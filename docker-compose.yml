@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  contacts-app:
+    build: .
+    container_name: contacts-service-app
+    ports:
+      - "8080:8080"
+    volumes:
+      # Монтируем папку для сохранения файла БД на хост-машине
+      - ./sqlite-data:/app/data
+    environment:
+      # Указываем путь к файлу БД внутри контейнера
+      SPRING_DATASOURCE_URL: jdbc:sqlite:/app/data/contacts.db
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.sqlite.JDBC
+    restart: always
