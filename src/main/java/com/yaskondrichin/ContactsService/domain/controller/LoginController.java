@@ -41,11 +41,7 @@ public class LoginController {
       
         return ResponseEntity.ok(loginMapper.toResponseDto(user));
     }
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponseDTO> register(@RequestBody LoginRequestDTO dto) {
 
-        return ResponseEntity.ok(loginService.register(dto));
-    }
 
 
     @Transactional
