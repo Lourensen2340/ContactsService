@@ -27,11 +27,12 @@ public class ContactController {
     private final ContactService contactService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+
     @Operation(summary = "Получить все контакты текущего пользователя")
-    public ResponseEntity<List<ContactDTO>> getAll(
-            @Parameter(hidden = true) @LoggedInUserId Long userId
-    ) {
+    public ResponseEntity<List<ContactDTO>> getAll(@AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+
         List<ContactDTO> contacts = contactService.findAllByUserId(userId);
         return ResponseEntity.ok(contacts);
     }
