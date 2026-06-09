@@ -50,11 +50,12 @@ public class TestSecurityConfig {
                 .build();
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));
     }
-    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(csrf -> csrf.disable()) // Отключаем CSRF для тестов
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()) // В тестах часто нужно разрешить все, чтобы Security проверяла только @PreAuthorize
+                .csrf(csrf -> csrf.disable())
+
+                // Разрешаем все запросы на уровне URL, чтобы за проверку отвечал ТОЛЬКО @PreAuthorize на контроллере
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .build();
     }
     @Bean
