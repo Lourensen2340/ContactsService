@@ -54,7 +54,11 @@ public class TestSecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable()) // Отключаем CSRF для тестов
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()) // В тестах часто нужно разрешить все, чтобы Security проверяла только @PreAuthorize
+                .authorizeHttpRequests(auth -> auth // <-- КРИТИЧЕСКИ ВАЖНО: открываем лямбду 'auth -> auth'
+                        // Теперь методы вызываются у объекта auth:
+                        .requestMatchers(HttpMethod.GET, "/api/v1/contacts").hasRole("ADMIN")
+                        .anyRequest().permitAll()
+                ) // <-- Закрываем лямбду authorizeHttpRequests
                 .build();
     }
     @Bean
