@@ -30,9 +30,16 @@ public class ContactServiceImpl implements ContactService {
     @Override
     @Transactional(readOnly = true)
     public List<ContactDTO> findAllByUserId(Long userId) {
-        // ИСПРАВЛЕНО: Никакого extractLongIdFromUuid, никакого лишнего findById(id) тут быть не должно!
         return contactRepository.findAllByUserId(userId).stream()
-                .map(contact -> new ContactDTO(contact.getId(), contact.getName(), contact.getPhone()))
+                .map(contact -> {
+                    ContactDTO dto = new ContactDTO();
+                    dto.setId(contact.getId());
+                    dto.setName(contact.getName());
+                    dto.setSurname(contact.getSurname());
+                    dto.setPhone(contact.getPhone());
+                    dto.setEmail(contact.getEmail());
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
