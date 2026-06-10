@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class TestSecurityConfig {
     @Autowired
     private MockMvc mockMvc;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -50,6 +51,7 @@ public class TestSecurityConfig {
                 .build();
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));
     }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
@@ -60,7 +62,8 @@ public class TestSecurityConfig {
                         .anyRequest().permitAll()
                 ) // <-- Закрываем лямбду authorizeHttpRequests
                 .build();
-        }
+    }
+
     @Bean
     @Primary
     public KeyPair keyPair() throws Exception {
@@ -69,12 +72,4 @@ public class TestSecurityConfig {
         kpg.initialize(2048);
         return kpg.generateKeyPair();
     }
-//    @Test
-//    void handleAccessDeniedException_ShouldReturn403() throws Exception {
-//        mockMvc.perform(get("/test-access-denied")
-//                        .accept(MediaType.APPLICATION_JSON))
-//                .andExpect(status().isForbidden()) // Ожидаем 403!
-//                .andExpect((ResultMatcher) jsonPath("$.error").value("Forbidden"))
-//                .andExpect((ResultMatcher) jsonPath("$.message").value("Access Denied"));
-//    }
 }
