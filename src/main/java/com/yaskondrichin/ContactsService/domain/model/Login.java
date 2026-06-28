@@ -5,14 +5,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 
 
 @Data // Эта аннотация Lombok автоматически создаст методы setEmail, setLogin и другие
 @NoArgsConstructor
 @AllArgsConstructor
-public class Login {
 
+public class Login {
+    @ManyToMany(mappedBy = "users")
+//    @JoinTable(
+//            name = "user_contacts", // Название промежуточной таблицы в БД
+//            joinColumns = @JoinColumn(name = "user_id"), // Внешний ключ для Login
+//            inverseJoinColumns = @JoinColumn(name = "contact_id") // Внешний ключ для Contact
+//    )
+    private List<Contact> contacts = new ArrayList<>();
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

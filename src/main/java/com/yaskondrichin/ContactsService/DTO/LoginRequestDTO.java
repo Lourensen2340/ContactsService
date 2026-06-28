@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 public class LoginRequestDTO {
-    private String username;
+    private String login;
     private String email;
     private String password;
     @NotBlank(message = "Номер телефона не должен быть пустым")

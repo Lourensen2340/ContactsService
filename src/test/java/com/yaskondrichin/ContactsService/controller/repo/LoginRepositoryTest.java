@@ -8,22 +8,31 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public class LoginRepositoryTest {
+
     @Autowired
     private LoginRepository loginRepository;
+
     @Autowired
     private TestEntityManager entityManager;
-    @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+
     @Test
     public void findByLogin_WhenLoginExists_ShouldReturnOptionalWithLogin() {
-        Login loginEntity = new Login(null, "unique_user", "pass", "unique@mail.com", "+375291234567", Role.USER);
+        // Создаем объект через пустой конструктор и сеттеры
+        Login loginEntity = new Login();
+        loginEntity.setLogin("unique_user");
+        loginEntity.setPass("pass");
+        loginEntity.setEmail("unique@mail.com");
+        loginEntity.setPhone("+375291234567");
+        loginEntity.setRole(Role.USER);
+
         entityManager.persistAndFlush(loginEntity);
 
         Optional<Login> found = loginRepository.findByLogin("unique_user");
@@ -41,8 +50,21 @@ public class LoginRepositoryTest {
 
     @Test
     public void findFirstByOrderByIdDesc_ShouldReturnLastSavedRecord() {
-        Login first = new Login(null, "first", "pass", "first@mail.com", "+375291111111", Role.USER);
-        Login second = new Login(null, "second", "pass", "second@mail.com", "+375292222222", Role.USER);
+        // Создаем первую запись
+        Login first = new Login();
+        first.setLogin("first");
+        first.setPass("pass");
+        first.setEmail("first@mail.com");
+        first.setPhone("+375291111111");
+        first.setRole(Role.USER);
+
+        // Создаем вторую запись
+        Login second = new Login();
+        second.setLogin("second");
+        second.setPass("pass");
+        second.setEmail("second@mail.com");
+        second.setPhone("+375292222222");
+        second.setRole(Role.USER);
 
         entityManager.persist(first);
         entityManager.persist(second);

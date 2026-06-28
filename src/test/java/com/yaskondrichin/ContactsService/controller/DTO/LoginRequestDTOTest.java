@@ -25,7 +25,7 @@ public class LoginRequestDTOTest {
     @Test
     public void whenValidData_thenNoViolations() {
         LoginRequestDTO dto = new LoginRequestDTO();
-        dto.setUsername("user");
+        dto.setLogin("user"); // ИСПРАВЛЕНО: используем setLogin вместо setUsername
         dto.setEmail("user@mail.com");
         dto.setPassword("secret123");
         dto.setPhone("+375291234567");

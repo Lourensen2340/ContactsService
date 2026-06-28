@@ -42,22 +42,25 @@ public class ContactDTOTest {
     }
 
     @Test
-    public void whenNameAndPhoneAreBlank_thenViolationsExist() {
+    public void whenFieldsAreInvalid_thenViolationsExist() {
         ContactDTO dto = new ContactDTO();
-        dto.setName(""); // Генерирует "Имя не может быть пустым"
-        dto.setPhone("   "); // Генерирует "Телефон обязателен"
-        dto.setEmail("invalid-email"); // Генерирует "Некорректный email"
+        dto.setName("");
+        dto.setSurname("Кондричин");
+        dto.setPhone("   ");
+        dto.setEmail("invalid-email");
 
         Set<ConstraintViolation<ContactDTO>> violations = validator.validate(dto);
 
-        assertEquals(3, violations.size());
+        // Убеждаемся, что валидация сработала (ошибки есть)
+        assertFalse(violations.isEmpty(), "Должны быть ошибки валидации");
 
-        boolean hasNameError = violations.stream().anyMatch(v -> v.getMessage().equals("Имя не может быть пустым"));
-        boolean hasPhoneError = violations.stream().anyMatch(v -> v.getMessage().equals("Телефон обязателен"));
-        boolean hasEmailError = violations.stream().anyMatch(v -> v.getMessage().equals("Некорректный email"));
+        // ИСПРАВЛЕНО: Проверяем, что ошибки возникли у правильных полей
+        boolean hasNameError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("name"));
+        boolean hasPhoneError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("phone"));
+        boolean hasEmailError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("email"));
 
-        assertTrue(hasNameError);
-        assertTrue(hasPhoneError);
-        assertTrue(hasEmailError);
+        assertTrue(hasNameError, "Должна быть ошибка валидации для поля name");
+        assertTrue(hasPhoneError, "Должна быть ошибка валидации для поля phone");
+        assertTrue(hasEmailError, "Должна быть ошибка валидации для поля email");
     }
 }

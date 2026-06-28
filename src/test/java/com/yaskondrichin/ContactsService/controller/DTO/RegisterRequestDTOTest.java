@@ -1,4 +1,4 @@
-package com.yaskondrichin.ContactsService.controller.Mapper;
+package com.yaskondrichin.ContactsService.controller.DTO;
 
 import com.yaskondrichin.ContactsService.DTO.ContactDTO;
 import com.yaskondrichin.ContactsService.Mapper.ContactMapper;

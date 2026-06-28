@@ -1,6 +1,9 @@
 package com.yaskondrichin.ContactsService.config;
 
+
+
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
@@ -17,7 +20,10 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 @Component
 @RequiredArgsConstructor
 @Slf4j // Для логирования
+@SecurityRequirement(name = LoggedInUserIdArgumentResolver.SECURITY_REQUIREMENT)
 public class LoggedInUserIdArgumentResolver implements HandlerMethodArgumentResolver {
+
+    public static final String SECURITY_REQUIREMENT = "Bearer Authentication";
 
     private final LoginRepository loginRepository;
 

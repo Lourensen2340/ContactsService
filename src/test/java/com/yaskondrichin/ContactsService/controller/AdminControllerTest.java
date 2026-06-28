@@ -29,8 +29,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+
+
 @WebMvcTest(AdminController.class)
-@Import(TestSecurityConfig.class)
+@Import(JwtProvider.class)
 public class AdminControllerTest {
 
     @Autowired

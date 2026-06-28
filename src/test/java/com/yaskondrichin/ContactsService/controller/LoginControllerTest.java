@@ -4,16 +4,17 @@ package com.yaskondrichin.ContactsService.controller;
 
 import com.yaskondrichin.ContactsService.DTO.LoginResponseDTO;
 import com.yaskondrichin.ContactsService.Mapper.LoginMapper;
+import com.yaskondrichin.ContactsService.config.JwtProvider;
+import com.yaskondrichin.ContactsService.controller.config.TestSecurityConfig;
 import com.yaskondrichin.ContactsService.domain.controller.LoginController;
 import com.yaskondrichin.ContactsService.domain.model.Login;
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.service.LoginService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -24,27 +25,34 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+
+@WebMvcTest(LoginController.class)
+@Import({JwtProvider.class, TestSecurityConfig.class})
 public class LoginControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    // Подменяем бин JwtDecoder, созданный в твоем SecurityConfig, чтобы он не ходил в Keycloak
-    @MockitoBean
-    private JwtDecoder jwtDecoder;
-
-    // Подменяем бизнес-логику контроллера
-    @MockitoBean
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
     private LoginService loginService;
 
     @MockitoBean
     private LoginMapper loginMapper;
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    private LoginRepository loginRepository;
+
+    @MockitoBean
+    private org.springframework.security.core.userdetails.UserDetailsService userDetailsService;
+
+    @MockitoBean
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @MockitoBean
+    private JwtDecoder jwtDecoder; // Добавлено для корректной работы JWT-фильтров в WebMvcTest контексте
+
     @Test
     public void getMe_WhenAuthenticated_ShouldReturnOkAndMappedUser() throws Exception {
-        Login mockLogin = new Login(10L, "ownerUser", "password", "owner@mail.com", "+375291111111", Role.USER);
+        Login mockLogin = Mockito.mock(Login.class);
         LoginResponseDTO responseDto = new LoginResponseDTO();
         responseDto.setId(10L);
         responseDto.setLogin("ownerUser");
@@ -70,8 +78,7 @@ public class LoginControllerTest {
 
     @Test
     public void getMe_WhenUnauthenticated_ShouldReturnUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/v1/logins/me")
-                        .contentType(MediaType.APPLICATION_JSON))
+        mockMvc.perform(get("/api/v1/logins/me"))
                 .andExpect(status().isUnauthorized());
     }
 }

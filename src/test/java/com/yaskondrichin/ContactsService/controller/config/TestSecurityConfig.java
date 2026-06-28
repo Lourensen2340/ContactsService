@@ -3,12 +3,13 @@ package com.yaskondrichin.ContactsService.controller.config;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.yaskondrichin.ContactsService.config.JwtProvider;
+import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
+import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,26 +18,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.HttpMethod;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultMatcher;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @TestConfiguration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class TestSecurityConfig {
-    @Autowired
-    private MockMvc mockMvc;
-
+    public JwtProvider jwtProvider() {
+        // Возвращаем либо реальный объект, либо Mockito.mock(JwtProvider.class)
+        return Mockito.mock(JwtProvider.class);
+    }
+    @Bean
+    public LoginRepository loginRepository() {
+        return org.mockito.Mockito.mock(LoginRepository.class);
+    }
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -52,17 +51,16 @@ public class TestSecurityConfig {
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable()) // Отключаем CSRF для тестов
-                .authorizeHttpRequests(auth -> auth // <-- КРИТИЧЕСКИ ВАЖНО: открываем лямбду 'auth -> auth'
-                        // Теперь методы вызываются у объекта auth:
-                        .requestMatchers(HttpMethod.GET, "/api/v1/contacts").hasRole("ADMIN")
-                        .anyRequest().permitAll()
-                ) // <-- Закрываем лямбду authorizeHttpRequests
-                .build();
-    }
+//    @Bean
+//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+//        return http
+//                .csrf(csrf -> csrf.disable()) // Отключаем CSRF для тестов
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(HttpMethod.GET, "/api/v1/contacts").hasRole("ADMIN")
+//                        .anyRequest().permitAll()
+//                )
+//                .build();
+//    }
 
     @Bean
     @Primary
@@ -72,4 +70,22 @@ public class TestSecurityConfig {
         kpg.initialize(2048);
         return kpg.generateKeyPair();
     }
+    @Bean
+    public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // Разрешаем любой запрос, который НАЧИНАЕТСЯ с /auth/ или /api/v1/auth/
+                        .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                        .exceptionHandling(exceptions -> exceptions
+                                .authenticationEntryPoint((request, response, authException) -> {
+                                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                                })
+                );
+        return http.build();
+    }
+
+
 }

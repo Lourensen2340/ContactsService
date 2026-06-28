@@ -1,19 +1,22 @@
 package com.yaskondrichin.ContactsService.service.impl;
 
 import com.yaskondrichin.ContactsService.DTO.ContactDTO;
+import com.yaskondrichin.ContactsService.Mapper.ContactMapper;
 import com.yaskondrichin.ContactsService.domain.model.Contact;
 import com.yaskondrichin.ContactsService.domain.model.Login;
+import com.yaskondrichin.ContactsService.domain.model.User;
 import com.yaskondrichin.ContactsService.domain.repo.ContactRepository;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
-import com.yaskondrichin.ContactsService.exception.ResourceNotFoundException;
+import com.yaskondrichin.ContactsService.domain.repo.UserRepository;
 import com.yaskondrichin.ContactsService.service.ContactService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,8 @@ public class ContactServiceImpl implements ContactService {
 
     private final ContactRepository contactRepository;
     private final LoginRepository loginRepository;
+    private final ContactMapper contactMapper; // Внедряем исправленный маппер
+    private final UserRepository userRepository;
 
     @Override
     public List<ContactDTO> findAll() {
@@ -30,108 +35,119 @@ public class ContactServiceImpl implements ContactService {
     @Override
     @Transactional(readOnly = true)
     public List<ContactDTO> findAllByUserId(Long userId) {
-        return contactRepository.findAllByUserId(userId).stream()
-                .map(contact -> {
-                    ContactDTO dto = new ContactDTO();
-                    dto.setId(contact.getId());
-                    dto.setName(contact.getName());
-                    dto.setSurname(contact.getSurname());
-                    dto.setPhone(contact.getPhone());
-                    dto.setEmail(contact.getEmail());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        List<Contact> contacts = contactRepository.findAllByUserIdAndIsDeletedFalse(userId);
+        // Вместо ручного stream().map() используем готовый метод маппера для списков
+        return contactMapper.toDtoList(contacts);
     }
 
-    @Override
-    @Transactional
-    public ContactDTO save(ContactDTO dto, Long userId) {
-        Contact contact;
-
-        // Исправляем проверку: если id равен null или 0, то это ТОЧНО новый контакт
-        if (dto.getId() != null && dto.getId() != 0) {
-            // Логика обновления существующего контакта
-            contact = contactRepository.findById(dto.getId())
-                    .orElseThrow(() -> new RuntimeException("Contact not found with id: " + dto.getId()));
-        } else {
-            // Логика создания нового контакта
-            contact = new Contact();
-
-            // Привязываем владельца (пользователя)
+    // МЕТОД 1: ТОЛЬКО СОЗДАНИЕ (Принимает DTO без ID)
+    public ContactDTO create(ContactDTO dto, Long userId) {
+        try {
+            // 1. Ищем владельца логина
             Login owner = loginRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
-            contact.setUser(owner);
+
+            // 2. Ищем связанного пользователя
+            User currentUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Пользователь не найден с id: " + userId));
+
+            // 3. Преобразуем DTO в сущность
+            Contact contact = contactMapper.toEntity(dto);
+
+            // === ЖЕЛЕЗОБЕТОННАЯ ЗАЩИТА ОТ МАППЕРА ===
+            if (contact.getUsers() == null) {
+                contact.setUsers(new ArrayList<>());
+            }
+            if (owner.getContacts() == null) {
+                owner.setContacts(new ArrayList<>());
+            }
+            // ========================================
+
+            // 4. Устанавливаем связи
+            contact.getUsers().add(owner);
+            owner.getContacts().add(contact);
+            contact.setUser(currentUser);
+
+            // 5. Сохраняем в базу данных
+            Contact savedContact = contactRepository.save(contact);
+            return contactMapper.toDTO(savedContact);
+
+        } catch (DataIntegrityViolationException e) {
+            // Ошибка уникальности (дубликат телефона/email)
+            throw new RuntimeException("Контакт с таким телефоном или email уже существует в вашей записной книжке");
+        } catch (Exception e) {
+            // === ЕСЛИ КОД УПАДЕТ, МЫ НАКОНЕЦ-ТО УВИДИМ ПОЧЕМУ ===
+            System.err.println("ОШИБКА ПРИ СОЗДАНИИ КОНТАКТА: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Внутренняя ошибка сервера: " + e.getMessage());
         }
-
-        // КРИТИЧЕСКИЙ ШАГ: Переносим ВСЕ данные из dto в сущность перед сохранением!
-        contact.setName(dto.getName());
-        contact.setSurname(dto.getSurname()); // Теперь фамилия не будет null
-        contact.setPhone(dto.getPhone());
-        contact.setEmail(dto.getEmail());     // Переносим email
-
-        // Сохраняем заполненную сущность в БД
-        Contact savedContact = contactRepository.save(contact);
-
-        // Собираем ответный DTO, заполняя его реальными сохраненными данными
-        ContactDTO responseDto = new ContactDTO();
-        responseDto.setId(savedContact.getId());
-        responseDto.setName(savedContact.getName());
-        responseDto.setSurname(savedContact.getSurname());
-        responseDto.setPhone(savedContact.getPhone());
-        responseDto.setEmail(savedContact.getEmail());
-
-        return responseDto;
-    }
-
-    @Override // Эта аннотация обязательна, она подтверждает реализацию метода из интерфейса
-    @Transactional
-    public ContactDTO update(Long contactId, ContactDTO dto, Long userId) {
-        // 1. Ищем редактируемый контакт в базе данных
-        Contact contact = contactRepository.findById(contactId)
-                .orElseThrow(() -> new RuntimeException("Contact not found with id: " + contactId));
-
-        // 2. Проверяем права: совпадает ли владелец контакта с userId из токена
-        if (!contact.getUser().getId().equals(userId)) {
-            throw new RuntimeException("You do not have permission to modify this contact");
-        }
-
-        // 3. Обновляем поля сущности новыми данными из DTO
-        contact.setName(dto.getName());
-        contact.setSurname(dto.getSurname());
-        contact.setPhone(dto.getPhone());
-        contact.setEmail(dto.getEmail());
-
-        // 4. Сохраняем измененную сущность в БД
-        Contact savedContact = contactRepository.save(contact);
-
-        // 5. Ручной маппинг: собираем ответный DTO (вместо отсутствующего метода toDTO)
-        ContactDTO responseDto = new ContactDTO();
-        responseDto.setId(savedContact.getId());
-        responseDto.setName(savedContact.getName());
-        responseDto.setSurname(savedContact.getSurname());
-        responseDto.setPhone(savedContact.getPhone());
-        responseDto.setEmail(savedContact.getEmail());
-
-        return responseDto;
     }
 
     @Override
     @Transactional
-    public void delete(Long contactId, Long userId) {
-        // 1. Находим контакт в базе данных
+    public ContactDTO update(Long contactId, ContactDTO contactDTO, Long userId) {
+        System.out.println("\n=== [DEBUG START] МЕТОД UPDATE ===");
+        System.out.println("Входной contactId: " + contactId);
+        System.out.println("Входной userId (из токена): " + userId);
+
+        // 1. Ищем контакт
+        Contact contact = contactRepository.findById(contactId)
+                .orElseThrow(() -> {
+                    System.out.println("ОШИБКА: Контакт с id " + contactId + " не найден в БД!");
+                    return new RuntimeException("Контакт не найден");
+                });
+
+        System.out.println("Контакт успешно найден в БД! Имя: " + contact.getName());
+
+        // 2. Проверяем связь с пользователем на null
+        if (contact.getUser() == null) {
+            System.out.println("ОШИБКА: У контакта в базе данных поле user_id равен NULL!");
+            throw new RuntimeException("У контакта нет владельца");
+        }
+
+        System.out.println("ID владельца из БД: " + contact.getUser().getId());
+
+        // 3. Проверяем совпадение ID
+        if (!contact.getUser().getId().equals(userId)) {
+            System.out.println("ОШИБКА: ID владельца (" + contact.getUser().getId() +
+                    ") не совпадает с userId из токена (" + userId + ")!");
+            throw new RuntimeException("Доступ запрещен");
+        }
+
+        System.out.println("=== [DEBUG SUCCESS] Проверки пройдены успешно! ===\n");
+
+        // Дальше ваш обычный код обновления...
+        contact.setName(contactDTO.getName());
+        contact.setSurname(contactDTO.getSurname());
+        contact.setPhone(contactDTO.getPhone());
+        contact.setEmail(contactDTO.getEmail());
+
+        Contact updatedContact = contactRepository.save(contact);
+        return contactMapper.toDTO(updatedContact);
+    }
+
+    @Transactional
+    @Override
+    public void deleteContact(Long contactId, Long userId) { // Имя и типы строго как в интерфейсе!
+        // 1. Находим пользователя
+        Login loginUser = loginRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        // 2. Находим контакт (ИСПРАВЛЕНО: ищем по contactId, а не по userId!)
         Contact contact = contactRepository.findById(contactId)
                 .orElseThrow(() -> new RuntimeException("Contact not found with id: " + contactId));
 
-        // 2. Логируем для отладки, чтобы в консоли точно видеть, что с чем сравнивается
-        System.out.println("Владелец контакта в БД (ID): " + contact.getUser().getId());
-        System.out.println("Пользователь из токена (ID): " + userId);
-
-        // 3. Надежная проверка прав через .equals()
-        if (!contact.getUser().getId().equals(userId)) {
-            throw new RuntimeException("You do not have permission to delete this contact");
+        // 3. Проверяем, привязан ли этот контакт к данному пользователю
+        if (!loginUser.getContacts().contains(contact)) {
+            throw new RuntimeException("You do not have permission to delete this contact or it's not in your list");
         }
 
-        // 4. Если ID совпали — удаляем контакт
-        contactRepository.delete(contact);
+        // 4. Мягкое удаление (ИСПРАВЛЕНО: правильный сеттер Lombok)
+        contact.setDeleted(true);
+        contactRepository.save(contact);
+
+        // 5. Удаляем связь из коллекции пользователя
+        loginUser.getContacts().remove(contact);
+        loginRepository.save(loginUser);
     }
 }

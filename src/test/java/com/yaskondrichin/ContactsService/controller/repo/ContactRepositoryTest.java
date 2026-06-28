@@ -10,8 +10,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,23 +27,25 @@ public class ContactRepositoryTest {
     @Transactional
     @Test
     public void findAllByUserId_WhenContactsExist_ShouldReturnListOfContacts() {
-        // 1. Создаем пользователя, передавая null вместо жесткого ID
-        Login mockUser = new Login(null, "yaskon", "hashed_pass", "yas@example.com", "+375291112233", Role.USER);
-        mockUser = entityManager.persistAndFlush(mockUser); // Сохраняем и получаем объект с ID из базы
+        // 1. Создаем и сохраняем пользователя (без лишних слэшей)
+        Login mockUser = new Login(new ArrayList<>(), null, "yaskon", "hashed_pass", "yas@example.com", "+375291112233", Role.USER);
+        mockUser = entityManager.persistAndFlush(mockUser);
 
         // 2. Создаем контакт
         Contact contact = new Contact();
-        contact.setId(null); // ИСПРАВЛЕНО: Обязательно null, чтобы база сгенерировала ID сама
+        contact.setId(null);
         contact.setName("Иван");
         contact.setSurname("Иванов");
         contact.setPhone("+375294445566");
         contact.setEmail("ivan@mail.ru");
-        contact.setUser(mockUser); // Привязываем сохраненного пользователя
+
+        // Исправлено: добавляем Login в список users, так как репозиторий делает JOIN c.users
+        contact.getUsers().add(mockUser);
 
         entityManager.persistAndFlush(contact);
 
         // 3. Вызываем репозиторий
-        List<Contact> contacts = contactRepository.findAllByUserId(mockUser.getId());
+        List<Contact> contacts = contactRepository.findAllByUserIdAndIsDeletedFalse(mockUser.getId());
 
         assertFalse(contacts.isEmpty());
         assertEquals(1, contacts.size());
@@ -52,8 +54,7 @@ public class ContactRepositoryTest {
 
     @Test
     public void findAllByUserId_WhenNoContactsExist_ShouldReturnEmptyList() {
-        List<Contact> foundContacts = contactRepository.findAllByUserId(99999L);
-        assertNotNull(foundContacts);
-        assertTrue(foundContacts.isEmpty());
+        List<Contact> contacts = contactRepository.findAllByUserIdAndIsDeletedFalse(999L);
+        assertTrue(contacts.isEmpty());
     }
 }

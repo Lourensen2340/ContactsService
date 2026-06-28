@@ -10,16 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.JwsHeader;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -27,59 +19,35 @@ public class LoginService {
     private final LoginRepository loginRepository;
     private final LoginMapper loginMapper;
     private final PasswordEncoder passwordEncoder;
-    private final JwtEncoder jwtEncoder;
+    private final JwtService jwtService;
 
     @Transactional
     public AuthResponseDTO register(LoginRequestDTO dto) {
-        if (loginRepository.findByLogin(dto.getUsername()).isPresent()) {
+        if (loginRepository.findByLogin(dto.getLogin()).isPresent()) {
             throw new RuntimeException("User already exists");
         }
 
-        Login entity = new Login();
-        entity.setLogin(dto.getUsername());
-        entity.setEmail(dto.getEmail());
-        entity.setPhone(dto.getPhone());
-        entity.setPass(passwordEncoder.encode(dto.getPassword()));
-        entity.setRole(Role.USER);
-
-        Login saved = loginRepository.save(entity);
-        TokenResponseDTO tokens = generateTokens(saved);
+        Login saved = createLoginEntity(dto);
+        TokenResponseDTO tokens = jwtService.generateTokens(saved);
 
         return AuthResponseDTO.builder()
                 .user(loginMapper.toResponseDto(saved))
                 .tokens(tokens)
                 .build();
     }
+    private Login createLoginEntity(LoginRequestDTO dto) {
+        Login entity = new Login();
+        entity.setLogin(dto.getLogin());
+        entity.setEmail(dto.getEmail());
+        entity.setPhone(dto.getPhone());
+        entity.setPass(passwordEncoder.encode(dto.getPassword()));
+        entity.setRole(Role.USER);
 
-    private TokenResponseDTO generateTokens(Login user) {
-        Instant now = Instant.now();
-        String userIdStr = user.getId().toString();
+        Login saved = loginRepository.save(entity);
 
-        String roleName = user.getRole() != null ? user.getRole().name() : "USER";
-        JwsHeader jwsHeader = JwsHeader.with(MacAlgorithm.HS256).build();
-
-        JwtClaimsSet accessClaims = JwtClaimsSet.builder()
-                .issuer("self")
-                .issuedAt(now)
-                .expiresAt(now.plus(1, ChronoUnit.HOURS))
-                .subject(userIdStr)
-                .claim("userId", user.getId())
-                .claim("login", user.getLogin())
-                .claim("roles", roleName)
-                .build();
-
-        JwtClaimsSet refreshClaims = JwtClaimsSet.builder()
-                .issuer("self")
-                .issuedAt(now)
-                .expiresAt(now.plus(30, ChronoUnit.DAYS))
-                .subject(userIdStr)
-                .build();
-
-        String access = jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, accessClaims)).getTokenValue();
-        String refresh = jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, refreshClaims)).getTokenValue();
-
-        return new TokenResponseDTO(access, refresh);
+        return entity;
     }
+
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
@@ -112,7 +80,7 @@ public class LoginService {
         Login user = loginRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User with ID " + userId + " does not exist"));
 
-        TokenResponseDTO tokens = generateTokens(user);
+        TokenResponseDTO tokens = jwtService.generateTokens(user);
 
         return AuthResponseDTO.builder()
                 .user(loginMapper.toResponseDto(user))

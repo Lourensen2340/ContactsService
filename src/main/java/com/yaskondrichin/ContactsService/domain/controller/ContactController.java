@@ -1,6 +1,7 @@
 package com.yaskondrichin.ContactsService.domain.controller;
 
 import com.yaskondrichin.ContactsService.DTO.ContactDTO;
+import com.yaskondrichin.ContactsService.Utils.SecurityUtils;
 import com.yaskondrichin.ContactsService.config.LoggedInUserId;
 import com.yaskondrichin.ContactsService.service.ContactService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/contacts")
@@ -24,7 +26,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ContactController {
 
+
     private final ContactService contactService;
+    private final SecurityUtils securityUtils;
 
     @GetMapping
 
@@ -43,42 +47,46 @@ public class ContactController {
             @RequestBody ContactDTO dto,
             @AuthenticationPrincipal Jwt jwt) {
 
-        // Получаем userId из клеймов JWT токена
-        Long userId = jwt.getClaim("userId");
+        // 1. Просто вызываем вспомогательный метод. Здесь никакой паники компилятора.
+        final Long userId = securityUtils.getUserIdFromJwt(jwt);
 
-        // Передаем ContactDTO и userId в сервис
-        ContactDTO response = contactService.save(dto, userId);
+        // 2. Передаем чистый Long userId в сервис
+        ContactDTO response = contactService.create(dto, userId);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{contactId}") // 1. ОБЯЗАТЕЛЬНО добавляем путь для переменной
     public ResponseEntity<ContactDTO> updateContact(
-            @PathVariable Long id,
-            @RequestBody ContactDTO dto,
-            @AuthenticationPrincipal Jwt jwt) { // Принимаем Jwt из контекста безопасности
+            @PathVariable Long contactId,
+            @AuthenticationPrincipal Jwt jwt, // 2. ОБЯЗАТЕЛЬНО объявляем jwt в параметрах
+            @Valid @RequestBody ContactDTO contactDTO
+    ) {
+        System.out.println("\n=== [DEBUG] СТРУКТУРА JWT ТОКЕНА ===");
+        jwt.getClaims().forEach((key, value) -> {
+            System.out.println("Клейм: [" + key + "] -> Значение: [" + value + "]");
+        });
+        System.out.println("====================================\n");
+        // ID пользователя (владельца) остается Long, это правильно!
+        Long userId = securityUtils.getUserIdFromJwt(jwt);
 
-        // Извлекаем userId из клейма токена прямо в контроллере
-        Long userId = jwt.getClaim("userId");
+        // 3. Исправляем имя переменной с dto на contactDTO
+        ContactDTO updated = contactService.update(contactId, contactDTO, userId);
 
-        // Передаем id контакта, пришедший DTO и извлеченный числовой userId в сервис
-        ContactDTO updated = contactService.update(id, dto, userId);
         return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Удалить контакт")
-    public ResponseEntity<Void> deleteContact(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) { // Берем JWT из контекста
+    @DeleteMapping("/{contactId}")
+    public ResponseEntity<?> deleteContact(
+            @PathVariable Long contactId,
+            @AuthenticationPrincipal Jwt jwt) { // 1. Принимаем JWT-токен
 
-        // ВНИМАТЕЛЬНО проверьте эту строку:
-        Long userId = jwt.getClaim("userId");
+        // 2. Вызываем ваш приватный метод для получения ID пользователя из токена
+        Long userId = securityUtils.getUserIdFromJwt(jwt);
 
-        // Передаем id контакта и извлеченный userId
-        contactService.delete(id, userId);
+        // 3. Передаем ОБА параметра в сервис (теперь компилятор будет доволен!)
+        contactService.deleteContact(contactId, userId);
 
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
-
 
 }

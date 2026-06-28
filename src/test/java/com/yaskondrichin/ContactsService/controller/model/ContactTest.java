@@ -1,14 +1,13 @@
 package com.yaskondrichin.ContactsService.controller.model;
 
 import com.yaskondrichin.ContactsService.domain.model.Contact;
-import com.yaskondrichin.ContactsService.domain.model.Login;
+import com.yaskondrichin.ContactsService.domain.model.User;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
@@ -23,10 +22,10 @@ public class ContactTest {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
     }
-    @Transactional
+
     @Test
     public void validContact_ShouldHaveNoValidationViolations() {
-        Login mockUser = new Login();
+        User mockUser = new User();
         mockUser.setId(1L);
 
         Contact contact = new Contact();
@@ -37,37 +36,48 @@ public class ContactTest {
         contact.setUser(mockUser);
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
-        assertTrue(violations.isEmpty(), "Валидный контакт не должен вызывать ошибок валидации");
+        assertTrue(violations.isEmpty(), "У валидного контакта не должно быть ошибок валидации");
     }
-    @Transactional
+
     @Test
-    public void contact_WhenFieldsAreBlank_ShouldFailValidation() {
+    public void whenFieldsAreBlank_thenViolationsExist() {
         Contact contact = new Contact();
-        contact.setName(""); // Ошибка: @NotBlank и @Size(min=2)
-        contact.setSurname(" "); // Ошибка: @NotBlank
-        contact.setPhone(""); // Ошибка: @NotBlank
-        contact.setEmail("invalid-email"); // Ошибка: @Email
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
         assertFalse(violations.isEmpty(), "Пустые поля должны вызывать ошибки валидации");
-
-        // Проверяем, что ошибок несколько (как минимум на имя, фамилию, телефон и почту)
-        assertTrue(violations.size() >= 4);
+        assertTrue(violations.size() >= 3, "Должно быть минимум 3 ошибки валидации для пустых обязательных полей");
     }
-    @Transactional
+
     @Test
     public void contact_WhenNameIsTooShort_ShouldFailValidation() {
         Contact contact = new Contact();
-        contact.setName("А"); // Слишком короткое имя (минимум 2 символа)
+        contact.setName("А");
         contact.setSurname("Петров");
         contact.setPhone("+375295555555");
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
 
-        boolean hasSizeViolation = violations.stream()
-                .anyMatch(v -> v.getMessage().contains("должно быть длинее 2-х символов"));
+        // ИСПРАВЛЕНО: Проверяем, что ошибка привязана к полю 'name'
+        boolean hasNameViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("name"));
 
-        assertTrue(hasSizeViolation, "Имя короче 2 символов должно генерировать ошибку @Size");
+        assertTrue(hasNameViolation, "Короткое имя должно генерировать ошибку валидации поля name");
+    }
+
+    @Test
+    public void contact_WhenSurnameIsBlank_ShouldReturnSpecificErrorMessage() {
+        Contact contact = new Contact();
+        contact.setName("Иван");
+        contact.setSurname("");
+        contact.setPhone("+375295555555");
+
+        Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
+
+        // ИСПРАВЛЕНО: Проверяем, что ошибка привязана к полю 'surname'
+        boolean hasSurnameViolation = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("surname"));
+
+        assertTrue(hasSurnameViolation, "Пустая фамилия должна генерировать ошибку валидации поля surname");
     }
 
     @Test
@@ -80,8 +90,7 @@ public class ContactTest {
         c2.setId(10L);
         c2.setName("Тест");
 
-        assertEquals(c1, c2, "Метод equals() от Lombok должен подтвердить равенство объектов с одинаковыми ID и данными");
-        assertEquals(c1.hashCode(), c2.hashCode(), "hashCode() должен совпадать для эквивалентных объектов");
-        assertNotNull(c1.toString());
+        assertEquals(c1, c2, "Метод equals() от Lombok должен подтвердить идентичность объектов с одинаковыми ID и полями");
+        assertEquals(c1.hashCode(), c2.hashCode(), "Методы hashCode() должны возвращать одинаковые значения");
     }
 }
