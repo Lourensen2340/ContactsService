@@ -51,16 +51,7 @@ public class TestSecurityConfig {
         return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));
     }
 
-//    @Bean
-//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        return http
-//                .csrf(csrf -> csrf.disable()) // Отключаем CSRF для тестов
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers(HttpMethod.GET, "/api/v1/contacts").hasRole("ADMIN")
-//                        .anyRequest().permitAll()
-//                )
-//                .build();
-//    }
+
 
     @Bean
     @Primary
