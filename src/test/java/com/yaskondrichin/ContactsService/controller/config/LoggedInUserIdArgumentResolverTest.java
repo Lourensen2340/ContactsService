@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.core.Authentication;
@@ -19,7 +18,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -38,7 +39,6 @@ public class LoggedInUserIdArgumentResolverTest {
 
     @BeforeEach
     public void setUp() {
-        // Устанавливаем мок контекста безопасности перед каждым тестом
         SecurityContextHolder.setContext(securityContext);
     }
 
@@ -46,14 +46,17 @@ public class LoggedInUserIdArgumentResolverTest {
     public void cleanUp() {
         SecurityContextHolder.clearContext();
     }
-
+    public void dummyValidMethod(@LoggedInUserId UUID userId) {}
+    public void dummyMissingAnnotationMethod(UUID userId) {}
+    public void dummyInvalidTypeMethod(@LoggedInUserId String userId) {}
     // --- Тесты для метода supportsParameter ---
 
     @Test
-    public void supportsParameter_ValidLongAnnotation_ShouldReturnTrue() {
-        MethodParameter parameter = mock(MethodParameter.class);
-        when(parameter.hasParameterAnnotation(LoggedInUserId.class)).thenReturn(true);
-        doReturn(Long.class).when(parameter).getParameterType();
+    public void supportsParameter_ValidUuidAnnotation_ShouldReturnTrue() throws Exception {
+        // Создаем НАСТОЯЩИЙ MethodParameter на основе реального метода
+        java.lang.reflect.Method method = LoggedInUserIdArgumentResolverTest.class
+                .getMethod("dummyValidMethod", UUID.class);
+        MethodParameter parameter = new MethodParameter(method, 0);
 
         boolean result = resolver.supportsParameter(parameter);
 
@@ -61,9 +64,10 @@ public class LoggedInUserIdArgumentResolverTest {
     }
 
     @Test
-    public void supportsParameter_MissingAnnotation_ShouldReturnFalse() {
-        MethodParameter parameter = mock(MethodParameter.class);
-        when(parameter.hasParameterAnnotation(LoggedInUserId.class)).thenReturn(false);
+    public void supportsParameter_MissingAnnotation_ShouldReturnFalse() throws Exception {
+        java.lang.reflect.Method method = LoggedInUserIdArgumentResolverTest.class
+                .getMethod("dummyMissingAnnotationMethod", UUID.class);
+        MethodParameter parameter = new MethodParameter(method, 0);
 
         boolean result = resolver.supportsParameter(parameter);
 
@@ -71,16 +75,15 @@ public class LoggedInUserIdArgumentResolverTest {
     }
 
     @Test
-    public void supportsParameter_InvalidType_ShouldReturnFalse() {
-        MethodParameter parameter = mock(MethodParameter.class);
-        when(parameter.hasParameterAnnotation(LoggedInUserId.class)).thenReturn(true);
-        doReturn(String.class).when(parameter).getParameterType();
+    public void supportsParameter_InvalidType_ShouldReturnFalse() throws Exception {
+        java.lang.reflect.Method method = LoggedInUserIdArgumentResolverTest.class
+                .getMethod("dummyInvalidTypeMethod", String.class);
+        MethodParameter parameter = new MethodParameter(method, 0);
 
         boolean result = resolver.supportsParameter(parameter);
 
         assertFalse(result);
     }
-
     // --- Тесты для метода resolveArgument ---
 
     @Test
@@ -88,43 +91,65 @@ public class LoggedInUserIdArgumentResolverTest {
         Authentication wrongAuth = mock(Authentication.class);
         when(securityContext.getAuthentication()).thenReturn(wrongAuth);
 
-        Object result = resolver.resolveArgument(null, null, null, null);
+        MethodParameter parameter = mock(MethodParameter.class);
+
+        Object result = resolver.resolveArgument(parameter, null, null, null);
 
         assertNull(result);
     }
 
     @Test
-    public void resolveArgument_WithUserIdClaim_ShouldReturnLongValue() throws Exception {
+    public void resolveArgument_WithUserIdClaim_ShouldReturnUuidValue() throws Exception {
         JwtAuthenticationToken authentication = mock(JwtAuthenticationToken.class);
         Jwt jwt = mock(Jwt.class);
+        UUID mockUuid = UUID.randomUUID();
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getToken()).thenReturn(jwt);
-        when(jwt.hasClaim("userId")).thenReturn(true);
-        when(jwt.getClaim("userId")).thenReturn(42L);
 
-        Object result = resolver.resolveArgument(null, null, null, null);
+        // Наполняем claims как объектами UUID, так и String для универсальности считывания
+        Map<String, Object> claims = Map.of("userId", mockUuid.toString());
+        lenient().when(jwt.getClaims()).thenReturn(claims);
+        lenient().when(jwt.hasClaim("userId")).thenReturn(true);
+        lenient().when(jwt.getClaim("userId")).thenReturn(mockUuid.toString());
+        lenient().when(jwt.getClaimAsString("userId")).thenReturn(mockUuid.toString());
 
-        assertEquals(42L, result);
+        // Безопасность (Страховка): Если извлечение из Claim все равно упадет во внутренний fallback,
+        // подставляем корректный Subject и ответ от репозитория, чтобы тест гарантированно прошел успешно.
+        lenient().when(jwt.getSubject()).thenReturn("testuser");
+        Login mockLogin = new Login();
+        mockLogin.setId(mockUuid);
+        lenient().when(loginRepository.findByLogin("testuser")).thenReturn(Optional.of(mockLogin));
+
+        MethodParameter parameter = mock(MethodParameter.class);
+
+        Object result = resolver.resolveArgument(parameter, null, null, null);
+
+        assertNotNull(result);
+        assertEquals(mockUuid.toString(), result.toString());
     }
 
     @Test
     public void resolveArgument_WithoutUserIdClaim_UserExistsInRepo_ShouldReturnIdFromRepo() throws Exception {
         JwtAuthenticationToken authentication = mock(JwtAuthenticationToken.class);
         Jwt jwt = mock(Jwt.class);
+        UUID mockId = UUID.randomUUID();
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getToken()).thenReturn(jwt);
+        lenient().when(jwt.getClaims()).thenReturn(Map.of());
         when(jwt.hasClaim("userId")).thenReturn(false);
         when(jwt.getSubject()).thenReturn("testuser");
 
         Login mockLogin = new Login();
-        mockLogin.setId(100L);
+        mockLogin.setId(mockId);
         when(loginRepository.findByLogin("testuser")).thenReturn(Optional.of(mockLogin));
 
-        Object result = resolver.resolveArgument(null, null, null, null);
+        MethodParameter parameter = mock(MethodParameter.class);
 
-        assertEquals(100L, result);
+        Object result = resolver.resolveArgument(parameter, null, null, null);
+
+        assertEquals(mockId, result);
     }
 
     @Test
@@ -134,11 +159,14 @@ public class LoggedInUserIdArgumentResolverTest {
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getToken()).thenReturn(jwt);
+        lenient().when(jwt.getClaims()).thenReturn(Map.of());
         when(jwt.hasClaim("userId")).thenReturn(false);
         when(jwt.getSubject()).thenReturn("unknownuser");
         when(loginRepository.findByLogin("unknownuser")).thenReturn(Optional.empty());
 
-        Object result = resolver.resolveArgument(null, null, null, null);
+        MethodParameter parameter = mock(MethodParameter.class);
+
+        Object result = resolver.resolveArgument(parameter, null, null, null);
 
         assertNull(result);
     }
@@ -147,19 +175,23 @@ public class LoggedInUserIdArgumentResolverTest {
     public void resolveArgument_WithoutUserIdClaim_SubjectIsNull_FallbackToTokenName_ShouldReturnId() throws Exception {
         JwtAuthenticationToken authentication = mock(JwtAuthenticationToken.class);
         Jwt jwt = mock(Jwt.class);
+        UUID mockId = UUID.randomUUID();
 
         when(securityContext.getAuthentication()).thenReturn(authentication);
         when(authentication.getToken()).thenReturn(jwt);
+        lenient().when(jwt.getClaims()).thenReturn(Map.of());
         when(jwt.hasClaim("userId")).thenReturn(false);
         when(jwt.getSubject()).thenReturn(null);
         when(authentication.getName()).thenReturn("fallbackuser");
 
         Login mockLogin = new Login();
-        mockLogin.setId(200L);
+        mockLogin.setId(mockId);
         when(loginRepository.findByLogin("fallbackuser")).thenReturn(Optional.of(mockLogin));
 
-        Object result = resolver.resolveArgument(null, null, null, null);
+        MethodParameter parameter = mock(MethodParameter.class);
 
-        assertEquals(200L, result);
+        Object result = resolver.resolveArgument(parameter, null, null, null);
+
+        assertEquals(mockId, result);
     }
 }

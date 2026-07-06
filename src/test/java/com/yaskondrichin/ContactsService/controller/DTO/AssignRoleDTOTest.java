@@ -1,7 +1,6 @@
 package com.yaskondrichin.ContactsService.controller.DTO;
 
 import com.yaskondrichin.ContactsService.DTO.AssignRoleDTO;
-import com.yaskondrichin.ContactsService.domain.model.Role;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

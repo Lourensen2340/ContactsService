@@ -2,7 +2,7 @@ package com.yaskondrichin.ContactsService.controller.repo;
 
 import com.yaskondrichin.ContactsService.domain.model.Contact;
 import com.yaskondrichin.ContactsService.domain.model.Login;
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.domain.repo.ContactRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,26 +27,31 @@ public class ContactRepositoryTest {
 
     @Transactional
     @Test
-    public void findAllByUserId_WhenContactsExist_ShouldReturnListOfContacts() {
-        // 1. Создаем и сохраняем пользователя (без лишних слэшей)
-        Login mockUser = new Login(new ArrayList<>(), null, "yaskon", "hashed_pass", "yas@example.com", "+375291112233", Role.USER);
+    public void findAllByLoginId_WhenContactsExist_ShouldReturnListOfContacts() {
+        // 1. Создаем и сохраняем аккаунт владельца контактов через сеттеры
+        Login mockUser = new Login();
+        mockUser.setLogin("yaskon");
+        mockUser.setPass("hashed_pass");
+        mockUser.setEmail("yas@example.com");
+        mockUser.setPhone("+375291112233");
+        mockUser.setRole(Role.USER);
+        mockUser.setContacts(new ArrayList<>());
         mockUser = entityManager.persistAndFlush(mockUser);
 
         // 2. Создаем контакт
         Contact contact = new Contact();
-        contact.setId(null);
         contact.setName("Иван");
         contact.setSurname("Иванов");
         contact.setPhone("+375294445566");
         contact.setEmail("ivan@mail.ru");
 
-        // Исправлено: добавляем Login в список users, так как репозиторий делает JOIN c.users
-        contact.getUsers().add(mockUser);
+        // Исправлено: устанавливаем прямую связь с Login вместо обращения к несуществующей коллекции users
+        contact.setLogin(mockUser);
 
         entityManager.persistAndFlush(contact);
 
-        // 3. Вызываем репозиторий
-        List<Contact> contacts = contactRepository.findAllByUserIdAndIsDeletedFalse(mockUser.getId());
+        // 3. Вызываем репозиторий через актуальный метод поиска по LoginId
+        List<Contact> contacts = contactRepository.findAllByLoginId(mockUser.getId());
 
         assertFalse(contacts.isEmpty());
         assertEquals(1, contacts.size());
@@ -53,8 +59,9 @@ public class ContactRepositoryTest {
     }
 
     @Test
-    public void findAllByUserId_WhenNoContactsExist_ShouldReturnEmptyList() {
-        List<Contact> contacts = contactRepository.findAllByUserIdAndIsDeletedFalse(999L);
+    public void findAllByLoginId_WhenNoContactsExist_ShouldReturnEmptyList() {
+        // Исправлено: тип аргумента заменен с Long (999L) на UUID
+        List<Contact> contacts = contactRepository.findAllByLoginId(UUID.randomUUID());
         assertTrue(contacts.isEmpty());
     }
 }

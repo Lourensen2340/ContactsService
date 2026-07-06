@@ -9,4 +9,5 @@ import lombok.*;
 public class AuthResponseDTO {
     private LoginResponseDTO user;
     private TokenResponseDTO tokens;
+    private String generatedPassword;
 }

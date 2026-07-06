@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest // Загружает Spring-контекст для работы MapStruct
+@SpringBootTest
 class ContactMapperTest {
 
     @Autowired
@@ -23,7 +25,6 @@ class ContactMapperTest {
         contact.setPhone("+375291112233");
         contact.setEmail("daniil@example.com");
 
-        // ИСПРАВЛЕНО: Вызываем toDTO() в точном соответствии с именем метода в интерфейсе
         ContactDTO dto = mapper.toDTO(contact);
 
         assertNotNull(dto);
@@ -34,11 +35,13 @@ class ContactMapperTest {
     }
 
     @Test
-    void toEntity_ShouldIgnoreFields() {
+    void toEntity_ShouldMapAllFieldsIncludingId() {
         ContactDTO dto = new ContactDTO();
-        dto.setId(42L); // Это поле ДОЛЖНО быть проигнорировано по конфигурации маппера
+        UUID mockId = UUID.randomUUID();
+
+        dto.setId(mockId);
         dto.setName("Новое имя");
-        dto.setEmail("test@mail.com"); // Это поле должно успешно перенестись
+        dto.setEmail("test@mail.com");
 
         Contact contact = mapper.toEntity(dto);
 
@@ -46,7 +49,7 @@ class ContactMapperTest {
         assertEquals("Новое имя", contact.getName());
         assertEquals("test@mail.com", contact.getEmail());
 
-        // ИСПРАВЛЕНО: Проверяем реальное игнорирование id, заданное в интерфейсе маппера
-        assertNull(contact.getId(), "Поле id должно быть проигнорировано маппером и остаться null");
+        // Исправлено: проверяем, что ID успешно переносится, так как маппер НЕ игнорирует его
+        assertEquals(mockId, contact.getId(), "Поле id должно быть успешно перенесено маппером из DTO в Entity");
     }
 }

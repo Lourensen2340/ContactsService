@@ -1,7 +1,5 @@
 package com.yaskondrichin.ContactsService.controller;
 
-
-
 import com.yaskondrichin.ContactsService.DTO.LoginResponseDTO;
 import com.yaskondrichin.ContactsService.Mapper.LoginMapper;
 import com.yaskondrichin.ContactsService.config.JwtProvider;
@@ -21,10 +19,16 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-
 
 @WebMvcTest(LoginController.class)
 @Import({JwtProvider.class, TestSecurityConfig.class})
@@ -33,13 +37,13 @@ public class LoginControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    @MockitoBean
     private LoginService loginService;
 
     @MockitoBean
     private LoginMapper loginMapper;
 
-    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    @MockitoBean
     private LoginRepository loginRepository;
 
     @MockitoBean
@@ -47,25 +51,40 @@ public class LoginControllerTest {
 
     @MockitoBean
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     @MockitoBean
-    private JwtDecoder jwtDecoder; // Добавлено для корректной работы JWT-фильтров в WebMvcTest контексте
+    private JwtDecoder jwtDecoder;
+
+    private final UUID mockUserId = UUID.randomUUID();
 
     @Test
     public void getMe_WhenAuthenticated_ShouldReturnOkAndMappedUser() throws Exception {
         Login mockLogin = Mockito.mock(Login.class);
         LoginResponseDTO responseDto = new LoginResponseDTO();
-        responseDto.setId(10L);
+        responseDto.setId(mockUserId); // Теперь ID это UUID
         responseDto.setLogin("ownerUser");
 
-        Mockito.when(loginService.getMe(Mockito.any(Jwt.class))).thenReturn(mockLogin);
-        Mockito.when(loginMapper.toResponseDto(mockLogin)).thenReturn(responseDto);
+        when(loginService.getMe(Mockito.any(Jwt.class))).thenReturn(mockLogin);
+        when(loginMapper.toResponseDto(mockLogin)).thenReturn(responseDto);
 
         mockMvc.perform(get("/api/v1/logins/me")
-                        .with(jwt().jwt(jwt -> jwt.subject("10"))
+                        .with(jwt().jwt(jwt -> jwt.subject(mockUserId.toString()))
                                 .authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.id").value(mockUserId.toString()))
                 .andExpect(jsonPath("$.login").value("ownerUser"));
+    }
+
+    @Test
+    public void delete_WhenUserExists_ShouldReturnNoContent() throws Exception {
+        Login mockLogin = Mockito.mock(Login.class);
+        when(loginRepository.findById(mockUserId)).thenReturn(Optional.of(mockLogin));
+        doNothing().when(loginRepository).delete(mockLogin);
+
+        mockMvc.perform(delete("/api/v1/logins/" + mockUserId)
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                        .with(csrf()))
+                .andExpect(status().isNoContent()); // Ожидаем 204 статус
     }
 
     @Test

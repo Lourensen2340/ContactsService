@@ -2,7 +2,7 @@ package com.yaskondrichin.ContactsService.controller.service;
 
 import com.yaskondrichin.ContactsService.DTO.TokenResponseDTO;
 import com.yaskondrichin.ContactsService.domain.model.Login;
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.service.JwtService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +16,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,8 +33,9 @@ class JwtServiceTest {
 
     @Test
     void generateTokens_ShouldReturnAccessAndRefreshTokensWithCorrectClaims() {
+        UUID mockId = UUID.randomUUID(); // Исправлено: long -> UUID
         Login login = new Login();
-        login.setId(123L);
+        login.setId(mockId);
         login.setLogin("daniil_dev");
         login.setRole(Role.USER);
 
@@ -50,7 +52,6 @@ class JwtServiceTest {
         TokenResponseDTO response = jwtService.generateTokens(login);
 
         assertNotNull(response);
-
         assertEquals("mocked-access-token-string", response.getAccessToken());
         assertEquals("mocked-refresh-token-string", response.getRefreshToken());
 
@@ -61,17 +62,17 @@ class JwtServiceTest {
         assertEquals(2, allCapturedParameters.size());
 
         JwtClaimsSet accessClaims = allCapturedParameters.get(0).getClaims();
-        assertEquals("http://localhost:8080", accessClaims.getIssuer().toString()); // ИСПРАВЛЕНО
-        assertEquals("123", accessClaims.getSubject());
-        assertEquals(123L, (Long) accessClaims.getClaim("userId"));
+        assertEquals("http://localhost:8080", accessClaims.getIssuer().toString());
+        assertEquals(mockId.toString(), accessClaims.getSubject()); // Исправлено утверждение
+        assertEquals(mockId.toString(), accessClaims.getClaim("userId").toString()); // Исправлено утверждение
         assertEquals("daniil_dev", accessClaims.getClaim("login"));
         assertEquals("USER", accessClaims.getClaim("roles"));
         assertNotNull(accessClaims.getIssuedAt());
         assertNotNull(accessClaims.getExpiresAt());
 
         JwtClaimsSet refreshClaims = allCapturedParameters.get(1).getClaims();
-        assertEquals("http://localhost:8080", refreshClaims.getIssuer().toString()); // ИСПРАВЛЕНО
-        assertEquals("123", refreshClaims.getSubject());
+        assertEquals("http://localhost:8080", refreshClaims.getIssuer().toString());
+        assertEquals(mockId.toString(), refreshClaims.getSubject()); // Исправлено утверждение
 
         assertNull(refreshClaims.getClaim("userId"));
         assertNull(refreshClaims.getClaim("login"));
@@ -80,8 +81,9 @@ class JwtServiceTest {
 
     @Test
     void generateTokens_ShouldDefaultToUserRole_WhenRoleIsNull() {
+        UUID mockId = UUID.randomUUID(); // Исправлено: long -> UUID
         Login login = new Login();
-        login.setId(999L);
+        login.setId(mockId);
         login.setLogin("guest_user");
         login.setRole(null);
 

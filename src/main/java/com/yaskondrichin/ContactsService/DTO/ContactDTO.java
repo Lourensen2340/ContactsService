@@ -17,7 +17,7 @@ import java.util.UUID;
 public class ContactDTO {
 
     @Schema(accessMode = Schema.AccessMode.READ_ONLY)
-    private Long id;
+    private UUID id;
     @NotBlank(message = "Имя не должно быть пустым")
     @Size(min = 2, message = "Имя должно содержать минимум 2 символа")
     private String name;

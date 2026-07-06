@@ -8,12 +8,12 @@ import java.util.UUID;
 
 public interface ContactService {
     List<ContactDTO> findAll();
-    List<ContactDTO> findAllByUserId(Long userId);
-    ContactDTO create(ContactDTO dto, Long userId);
-    ContactDTO update(Long contactId, ContactDTO contactDTO, Long userId);
+    List<ContactDTO> findAllByUserId(UUID userId);
+    ContactDTO create(ContactDTO dto, UUID userId);
+    ContactDTO update(UUID contactId, ContactDTO contactDTO, UUID userId);
 
     //void deleteContact(Long contactId);
 
     @Transactional
-    void deleteContact(Long contactId, Long userId);
+    void deleteContact(UUID contactId, UUID userId);
 }

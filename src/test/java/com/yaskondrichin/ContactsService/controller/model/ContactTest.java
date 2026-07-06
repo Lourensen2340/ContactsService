@@ -1,7 +1,7 @@
 package com.yaskondrichin.ContactsService.controller.model;
 
 import com.yaskondrichin.ContactsService.domain.model.Contact;
-import com.yaskondrichin.ContactsService.domain.model.User;
+import com.yaskondrichin.ContactsService.domain.model.Login;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,15 +26,15 @@ public class ContactTest {
 
     @Test
     public void validContact_ShouldHaveNoValidationViolations() {
-        User mockUser = new User();
-        mockUser.setId(1L);
+        Login mockLogin = new Login();
+        mockLogin.setId(UUID.randomUUID());
 
         Contact contact = new Contact();
         contact.setName("Иван");
         contact.setSurname("Иванов");
         contact.setPhone("+375291112233");
         contact.setEmail("ivanov@example.com");
-        contact.setUser(mockUser);
+        contact.setLogin(mockLogin); // Исправлено: заменено с setUser(mockUser)
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
         assertTrue(violations.isEmpty(), "У валидного контакта не должно быть ошибок валидации");
@@ -57,7 +58,6 @@ public class ContactTest {
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
 
-        // ИСПРАВЛЕНО: Проверяем, что ошибка привязана к полю 'name'
         boolean hasNameViolation = violations.stream()
                 .anyMatch(v -> v.getPropertyPath().toString().equals("name"));
 
@@ -73,7 +73,6 @@ public class ContactTest {
 
         Set<ConstraintViolation<Contact>> violations = validator.validate(contact);
 
-        // ИСПРАВЛЕНО: Проверяем, что ошибка привязана к полю 'surname'
         boolean hasSurnameViolation = violations.stream()
                 .anyMatch(v -> v.getPropertyPath().toString().equals("surname"));
 
@@ -83,11 +82,12 @@ public class ContactTest {
     @Test
     public void contactLombok_ShouldWorkCorrectly() {
         Contact c1 = new Contact();
-        c1.setId(10L);
+        UUID mockId = UUID.randomUUID(); // Исправлено: заменено с Long на UUID
+        c1.setId(mockId);
         c1.setName("Тест");
 
         Contact c2 = new Contact();
-        c2.setId(10L);
+        c2.setId(mockId);
         c2.setName("Тест");
 
         assertEquals(c1, c2, "Метод equals() от Lombok должен подтвердить идентичность объектов с одинаковыми ID и полями");

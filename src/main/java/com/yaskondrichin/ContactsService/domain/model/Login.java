@@ -1,5 +1,6 @@
 package com.yaskondrichin.ContactsService.domain.model;
 
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -7,7 +8,8 @@ import lombok.AllArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.UUID;
+import jakarta.persistence.Transient;
 @Entity
 
 
@@ -16,16 +18,17 @@ import java.util.List;
 @AllArgsConstructor
 
 public class Login {
-    @ManyToMany(mappedBy = "users")
-//    @JoinTable(
-//            name = "user_contacts", // Название промежуточной таблицы в БД
-//            joinColumns = @JoinColumn(name = "user_id"), // Внешний ключ для Login
-//            inverseJoinColumns = @JoinColumn(name = "contact_id") // Внешний ключ для Contact
-//    )
+    @OneToMany(mappedBy = "login", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Contact> contacts = new ArrayList<>();
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(generator = "UUIDv7")
+    @org.hibernate.annotations.GenericGenerator(
+            name = "UUIDv7",
+            type = com.yaskondrichin.ContactsService.domain.generator.UuidV7Generator.class
+    )
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
+    @Column(length = 36)
+    private UUID id;
 
     @Column(unique = true, nullable = false)
     private String login;
@@ -40,4 +43,6 @@ public class Login {
     private String phone;
     @Enumerated(EnumType.STRING)
     private Role role;
+    @Transient
+    private String rawPassword;
 }

@@ -1,6 +1,6 @@
 package com.yaskondrichin.ContactsService.controller.model;
 
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import org.junit.jupiter.api.Test;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ContactRepository extends JpaRepository<Contact, Long> {
-    @Query("SELECT c FROM Contact c JOIN c.users u WHERE u.id = :userId")
-    List<Contact> findAllByUserIdAndIsDeletedFalse(Long userId);
+public interface ContactRepository extends JpaRepository<Contact, UUID> { // ИСПРАВЛЕНО: тип ID изменен на UUID
+    List<Contact> findAllByLoginId(UUID loginId); // ИСПРАВЛЕНО: тип параметра теперь UUID
 }

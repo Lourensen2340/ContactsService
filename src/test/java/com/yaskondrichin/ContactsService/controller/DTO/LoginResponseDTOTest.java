@@ -2,6 +2,7 @@ package com.yaskondrichin.ContactsService.controller.DTO;
 
 import com.yaskondrichin.ContactsService.DTO.LoginResponseDTO;
 import org.junit.jupiter.api.Test;
+import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class LoginResponseDTOTest {
@@ -9,11 +10,12 @@ public class LoginResponseDTOTest {
     @Test
     public void testGettersAndSetters() {
         LoginResponseDTO dto = new LoginResponseDTO();
-        dto.setId(5L);
+        UUID mockId = UUID.randomUUID();
+        dto.setId(mockId);
         dto.setLogin("daniil_dev");
-        dto.setEmail("test@test.com"); // Метод Lombok для поля Email
+        dto.setEmail("test@test.com");
 
-        assertEquals(5L, dto.getId());
+        assertEquals(mockId, dto.getId());
         assertEquals("daniil_dev", dto.getLogin());
         assertEquals("test@test.com", dto.getEmail());
     }

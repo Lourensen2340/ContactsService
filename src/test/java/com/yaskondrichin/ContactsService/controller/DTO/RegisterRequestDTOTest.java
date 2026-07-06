@@ -1,52 +1,65 @@
 package com.yaskondrichin.ContactsService.controller.DTO;
 
-import com.yaskondrichin.ContactsService.DTO.ContactDTO;
-import com.yaskondrichin.ContactsService.Mapper.ContactMapper;
-import com.yaskondrichin.ContactsService.domain.model.Contact;
+import com.yaskondrichin.ContactsService.DTO.RegisterRequestDTO;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest // Загружает Spring-контекст для работы MapStruct
-class ContactMapperTest {
-
-    @Autowired
-    private ContactMapper mapper;
+class RegisterRequestDTOTest {
 
     @Test
-    void toDto_ShouldMapFieldsCorrectly() {
-        Contact contact = new Contact();
-        contact.setName("Даниил");
-        contact.setSurname("Кондричин");
-        contact.setPhone("+375291112233");
-        contact.setEmail("daniil@example.com");
+    void testNoArgsConstructorAndSettersAndGetters() {
+        // Проверка конструктора без аргументов и сеттеров/геттеров
+        RegisterRequestDTO dto = new RegisterRequestDTO();
 
-        // ИСПРАВЛЕНО: Вызываем toDTO() в точном соответствии с именем метода в интерфейсе
-        ContactDTO dto = mapper.toDTO(contact);
+        dto.setUsername("daniil_dev");
+        dto.setPassword("securePass123");
+        dto.setEmail("daniil@example.com");
+        dto.setPhone("+375291112233");
 
-        assertNotNull(dto);
-        assertEquals("Даниил", dto.getName());
-        assertEquals("Кондричин", dto.getSurname());
-        assertEquals("+375291112233", dto.getPhone());
+        assertEquals("daniil_dev", dto.getUsername());
+        assertEquals("securePass123", dto.getPassword());
         assertEquals("daniil@example.com", dto.getEmail());
+        assertEquals("+375291112233", dto.getPhone());
     }
 
     @Test
-    void toEntity_ShouldIgnoreFields() {
-        ContactDTO dto = new ContactDTO();
-        dto.setId(42L); // Это поле ДОЛЖНО быть проигнорировано по конфигурации маппера
-        dto.setName("Новое имя");
-        dto.setEmail("test@mail.com"); // Это поле должно успешно перенестись
+    void testAllArgsConstructor() {
+        // Проверка конструктора со всеми аргументами
+        RegisterRequestDTO dto = new RegisterRequestDTO(
+                "daniil_dev",
+                "securePass123",
+                "daniil@example.com",
+                "+375291112233"
+        );
 
-        Contact contact = mapper.toEntity(dto);
+        assertEquals("daniil_dev", dto.getUsername());
+        assertEquals("securePass123", dto.getPassword());
+        assertEquals("daniil@example.com", dto.getEmail());
+        assertEquals("+375291112233", dto.getPhone());
+    }
 
-        assertNotNull(contact);
-        assertEquals("Новое имя", contact.getName());
-        assertEquals("test@mail.com", contact.getEmail());
+    @Test
+    void testEqualsAndHashCode() {
+        // Проверка корректности работы equals и hashCode для одинаковых объектов
+        RegisterRequestDTO dto1 = new RegisterRequestDTO("user", "pass", "user@mail.com", "+375291111111");
+        RegisterRequestDTO dto2 = new RegisterRequestDTO("user", "pass", "user@mail.com", "+375291111111");
+        RegisterRequestDTO dto3 = new RegisterRequestDTO("other", "pass", "user@mail.com", "+375291111111");
 
-        // ИСПРАВЛЕНО: Проверяем реальное игнорирование id, заданное в интерфейсе маппера
-        assertNull(contact.getId(), "Поле id должно быть проигнорировано маппером и остаться null");
+        assertEquals(dto1, dto2);
+        assertNotEquals(dto1, dto3);
+        assertEquals(dto1.hashCode(), dto2.hashCode());
+        assertNotEquals(dto1.hashCode(), dto3.hashCode());
+    }
+
+    @Test
+    void testToString() {
+        // Проверка генерации строки toString
+        RegisterRequestDTO dto = new RegisterRequestDTO("user", "pass", "user@mail.com", "+375291111111");
+        String toStringResult = dto.toString();
+
+        assertTrue(toStringResult.contains("username=user"));
+        assertTrue(toStringResult.contains("email=user@mail.com"));
+        assertTrue(toStringResult.contains("phone=+375291111111"));
     }
 }

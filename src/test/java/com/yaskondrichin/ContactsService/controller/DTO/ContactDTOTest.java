@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,7 +26,8 @@ public class ContactDTOTest {
     @Test
     public void whenAllFieldsValid_thenNoViolations() {
         ContactDTO dto = new ContactDTO();
-        dto.setId(1L);
+        UUID mockId = UUID.randomUUID();
+        dto.setId(mockId);
         dto.setName("Даниил");
         dto.setSurname("Кондричин");
         dto.setPhone("+375291112233");
@@ -34,7 +36,7 @@ public class ContactDTOTest {
         Set<ConstraintViolation<ContactDTO>> violations = validator.validate(dto);
 
         assertTrue(violations.isEmpty());
-        assertEquals(1L, dto.getId());
+        assertEquals(mockId, dto.getId());
         assertEquals("Даниил", dto.getName());
         assertEquals("Кондричин", dto.getSurname());
         assertEquals("+375291112233", dto.getPhone());
@@ -51,10 +53,8 @@ public class ContactDTOTest {
 
         Set<ConstraintViolation<ContactDTO>> violations = validator.validate(dto);
 
-        // Убеждаемся, что валидация сработала (ошибки есть)
         assertFalse(violations.isEmpty(), "Должны быть ошибки валидации");
 
-        // ИСПРАВЛЕНО: Проверяем, что ошибки возникли у правильных полей
         boolean hasNameError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("name"));
         boolean hasPhoneError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("phone"));
         boolean hasEmailError = violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("email"));

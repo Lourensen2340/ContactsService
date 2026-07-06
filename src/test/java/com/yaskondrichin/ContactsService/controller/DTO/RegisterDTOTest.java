@@ -26,12 +26,10 @@ public class RegisterDTOTest {
     public void testGettersAndSetters() {
         RegisterDTO dto = new RegisterDTO();
         dto.setUsername("ivan_ivanov");
-        dto.setPassword("securePass123");
         dto.setEmail("ivan@mail.com");
         dto.setPhone("+375291112233");
 
         assertEquals("ivan_ivanov", dto.getUsername());
-        assertEquals("securePass123", dto.getPassword());
         assertEquals("ivan@mail.com", dto.getEmail());
         assertEquals("+375291112233", dto.getPhone());
     }
@@ -50,7 +48,6 @@ public class RegisterDTOTest {
 
     @Test
     public void whenFieldsAreEmpty_thenNoViolationsExistBecauseNoAnnotations() {
-        // Проверяем, что пустой объект не вызывает ошибок, так как аннотаций валидации в DTO нет
         RegisterDTO dto = new RegisterDTO();
 
         Set<ConstraintViolation<RegisterDTO>> violations = validator.validate(dto);

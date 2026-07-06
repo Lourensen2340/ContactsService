@@ -5,13 +5,15 @@ import com.yaskondrichin.ContactsService.exception.ResourceNotFoundException;
 import com.yaskondrichin.ContactsService.Mapper.LoginMapper;
 import com.yaskondrichin.ContactsService.domain.model.Login;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID; // ДОБАВЛЕНО
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,7 @@ public class LoginService {
                 .tokens(tokens)
                 .build();
     }
+
     private Login createLoginEntity(LoginRequestDTO dto) {
         Login entity = new Login();
         entity.setLogin(dto.getLogin());
@@ -43,11 +46,8 @@ public class LoginService {
         entity.setPass(passwordEncoder.encode(dto.getPassword()));
         entity.setRole(Role.USER);
 
-        Login saved = loginRepository.save(entity);
-
-        return entity;
+        return loginRepository.save(entity);
     }
-
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional(readOnly = true)
@@ -57,26 +57,25 @@ public class LoginService {
                 .orElseThrow(() -> new RuntimeException("No users found"));
     }
 
-    // ИСПРАВЛЕНО: ИзмененоhasRole('ADMIN') на isAuthenticated(), чтобы обычные пользователи могли вызывать этот метод
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public Login getMe(Jwt jwt) {
-        Long userId = Long.valueOf(jwt.getSubject());
+        // ИСПРАВЛЕНО: Извлекаем ID из токена как UUID
+        UUID userId = UUID.fromString(jwt.getSubject());
         return loginRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
     }
 
-    // ИСПРАВЛЕНО: Упрощено выражение проверки владельца токена через более надежный authentication.name
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional(readOnly = true)
-    public LoginResponseDTO findById(Long id) {
+    public LoginResponseDTO findById(UUID id) { // ИСПРАВЛЕНО: Long -> UUID
         Login login = loginRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Пользователь с ID " + id + " не найден"));
         return loginMapper.toResponseDto(login);
     }
 
     @Transactional(readOnly = true)
-    public AuthResponseDTO generateTokensByUserId(Long userId) {
+    public AuthResponseDTO generateTokensByUserId(UUID userId) { // ИСПРАВЛЕНО: Long -> UUID
         Login user = loginRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User with ID " + userId + " does not exist"));
 
@@ -90,6 +89,7 @@ public class LoginService {
 
     @Transactional
     public void assignRole(AssignRoleDTO assignRoleDTO) {
+        // ВНИМАНИЕ: Поле userId внутри класса AssignRoleDTO тоже должно быть типа UUID!
         Login login = loginRepository.findById(assignRoleDTO.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Пользователь с ID " + assignRoleDTO.getUserId() + " не найден"));
 

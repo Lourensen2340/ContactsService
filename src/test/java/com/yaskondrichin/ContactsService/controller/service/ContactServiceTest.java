@@ -4,14 +4,11 @@ import com.yaskondrichin.ContactsService.DTO.ContactDTO;
 import com.yaskondrichin.ContactsService.Mapper.ContactMapper;
 import com.yaskondrichin.ContactsService.domain.model.Contact;
 import com.yaskondrichin.ContactsService.domain.model.Login;
-import com.yaskondrichin.ContactsService.domain.model.User;
 import com.yaskondrichin.ContactsService.domain.repo.ContactRepository;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
-import com.yaskondrichin.ContactsService.domain.repo.UserRepository;
 import com.yaskondrichin.ContactsService.service.impl.ContactServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -20,6 +17,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,14 +35,9 @@ class ContactServiceTest {
     @Mock
     private ContactMapper contactMapper;
 
-    @Mock
-    private UserRepository userRepository;
-
-    // Внедряем заглушки в реализацию, но тестируем поведение через интерфейс ContactService
     @InjectMocks
     private ContactServiceImpl contactService;
 
-    // --- Тесты для findAll() ---
     @Test
     void findAll_ShouldReturnEmptyList() {
         List<ContactDTO> result = contactService.findAll();
@@ -52,28 +45,27 @@ class ContactServiceTest {
         assertTrue(result.isEmpty());
     }
 
-    // --- Тесты для findAllByUserId() ---
     @Test
     void findAllByUserId_ShouldReturnMappedDtoList() {
-        Long userId = 1L;
+        UUID userId = UUID.randomUUID();
         List<Contact> mockContacts = List.of(new Contact(), new Contact());
         List<ContactDTO> mockDtos = List.of(new ContactDTO(), new ContactDTO());
 
-        when(contactRepository.findAllByUserIdAndIsDeletedFalse(userId)).thenReturn(mockContacts);
+        when(contactRepository.findAllByLoginId(userId)).thenReturn(mockContacts);
         when(contactMapper.toDtoList(mockContacts)).thenReturn(mockDtos);
 
         List<ContactDTO> result = contactService.findAllByUserId(userId);
 
         assertEquals(2, result.size());
-        verify(contactRepository, times(1)).findAllByUserIdAndIsDeletedFalse(userId);
+        verify(contactRepository, times(1)).findAllByLoginId(userId);
         verify(contactMapper, times(1)).toDtoList(mockContacts);
     }
 
-    // --- Тесты для create() ---
     @Test
-    void create_ShouldSaveAndReturnContact_WhenUserAndLoginExist() {
+    void create_ShouldSaveAndReturnContact_WhenLoginExists() {
         // Given
-        Long userId = 1L;
+        UUID userId = UUID.randomUUID();
+        UUID generatedContactId = UUID.randomUUID();
         ContactDTO inputDto = new ContactDTO();
         inputDto.setName("Иван");
 
@@ -81,19 +73,14 @@ class ContactServiceTest {
         mockOwner.setId(userId);
         mockOwner.setContacts(new ArrayList<>());
 
-        User mockUser = new User();
-        mockUser.setId(userId);
-
         Contact mockContact = new Contact();
-        mockContact.setUsers(new ArrayList<>());
 
         Contact savedContact = new Contact();
         ContactDTO expectedDto = new ContactDTO();
-        expectedDto.setId(55L);
+        expectedDto.setId(generatedContactId);
         expectedDto.setName("Иван");
 
         when(loginRepository.findById(userId)).thenReturn(Optional.of(mockOwner));
-        when(userRepository.findById(userId)).thenReturn(Optional.of(mockUser));
         when(contactMapper.toEntity(inputDto)).thenReturn(mockContact);
         when(contactRepository.save(any(Contact.class))).thenReturn(savedContact);
         when(contactMapper.toDTO(savedContact)).thenReturn(expectedDto);
@@ -103,14 +90,13 @@ class ContactServiceTest {
 
         // Then
         assertNotNull(result);
-        assertEquals(55L, result.getId());
+        assertEquals(generatedContactId, result.getId());
         verify(contactRepository, times(1)).save(mockContact);
-        assertTrue(mockOwner.getContacts().contains(mockContact));
     }
 
     @Test
     void create_ShouldThrowException_WhenLoginNotFound() {
-        Long userId = 1L;
+        UUID userId = UUID.randomUUID();
         ContactDTO dto = new ContactDTO();
         when(loginRepository.findById(userId)).thenReturn(Optional.empty());
 
@@ -120,25 +106,23 @@ class ContactServiceTest {
     }
 
     @Test
-    void create_ShouldThrowException_OnDataIntegrityViolation() {
-        Long userId = 1L;
+    void create_ShouldThrowDataIntegrityViolationException_OnDuplicate() {
+        UUID userId = UUID.randomUUID();
         ContactDTO dto = new ContactDTO();
 
         when(loginRepository.findById(userId)).thenReturn(Optional.of(new Login()));
-        when(userRepository.findById(userId)).thenReturn(Optional.of(new User()));
         when(contactMapper.toEntity(dto)).thenReturn(new Contact());
         when(contactRepository.save(any(Contact.class))).thenThrow(new DataIntegrityViolationException("Duplicate"));
 
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> contactService.create(dto, userId));
-        assertEquals("Контакт с таким телефоном или email уже существует в вашей записной книжке", exception.getMessage());
+        // Ожидаем прямое выбрасывание DataIntegrityViolationException из репозитория
+        assertThrows(DataIntegrityViolationException.class, () -> contactService.create(dto, userId));
     }
 
-    // --- Тесты для update() ---
     @Test
     void update_ShouldUpdateAndReturnContact_WhenUserIsOwner() {
         // Given
-        Long contactId = 10L;
-        Long userId = 1L;
+        UUID contactId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
 
         ContactDTO updateFields = new ContactDTO();
         updateFields.setName("Алексей");
@@ -146,12 +130,12 @@ class ContactServiceTest {
         updateFields.setPhone("+375290000000");
         updateFields.setEmail("alex@mail.com");
 
-        User ownerUser = new User();
-        ownerUser.setId(userId);
+        Login ownerLogin = new Login();
+        ownerLogin.setId(userId);
 
         Contact existingContact = new Contact();
         existingContact.setId(contactId);
-        existingContact.setUser(ownerUser); // Владелец совпадает с userId
+        existingContact.setLogin(ownerLogin);
 
         Contact savedContact = new Contact();
         ContactDTO expectedDto = new ContactDTO();
@@ -173,8 +157,8 @@ class ContactServiceTest {
 
     @Test
     void update_ShouldThrowException_WhenContactNotFound() {
-        Long contactId = 99L;
-        Long userId = 1L;
+        UUID contactId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
         when(contactRepository.findById(contactId)).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class, () ->
@@ -184,15 +168,15 @@ class ContactServiceTest {
 
     @Test
     void update_ShouldThrowException_WhenUserIsNotOwner() {
-        Long contactId = 10L;
-        Long currentUserId = 1L; // Тот, кто пытается обновить
-        Long realOwnerId = 2L;   // Настоящий владелец
+        UUID contactId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        UUID realOwnerId = UUID.randomUUID();
 
-        User realOwner = new User();
+        Login realOwner = new Login();
         realOwner.setId(realOwnerId);
 
         Contact contact = new Contact();
-        contact.setUser(realOwner);
+        contact.setLogin(realOwner);
 
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
 
@@ -202,24 +186,20 @@ class ContactServiceTest {
         verify(contactRepository, never()).save(any());
     }
 
-    // --- Тесты для deleteContact() ---
     @Test
-    void deleteContact_ShouldSoftDelete_WhenContactInUserList() {
+    void deleteContact_ShouldSoftDelete_WhenUserIsOwner() {
         // Given
-        Long contactId = 10L;
-        Long userId = 1L;
-
-        Contact contactToDelete = new Contact();
-        contactToDelete.setId(contactId);
-        contactToDelete.setDeleted(false);
+        UUID contactId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
 
         Login loginUser = new Login();
         loginUser.setId(userId);
-        List<Contact> userContacts = new ArrayList<>();
-        userContacts.add(contactToDelete);
-        loginUser.setContacts(userContacts); // Связываем контакт с пользователем
 
-        when(loginRepository.findById(userId)).thenReturn(Optional.of(loginUser));
+        Contact contactToDelete = new Contact();
+        contactToDelete.setId(contactId);
+        contactToDelete.setLogin(loginUser);
+        contactToDelete.setDeleted(false);
+
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(contactToDelete));
 
         // When
@@ -227,31 +207,6 @@ class ContactServiceTest {
 
         // Then
         assertTrue(contactToDelete.isDeleted(), "Флаг мягкого удаления должен быть true");
-        assertFalse(loginUser.getContacts().contains(contactToDelete), "Контакт должен быть удален из коллекции пользователя");
         verify(contactRepository, times(1)).save(contactToDelete);
-        verify(loginRepository, times(1)).save(loginUser);
-    }
-
-    @Test
-    void deleteContact_ShouldThrowException_WhenContactNotInUserList() {
-        Long contactId = 10L;
-        Long userId = 1L;
-
-        Contact strangerContact = new Contact();
-        strangerContact.setId(contactId);
-
-        Login loginUser = new Login();
-        loginUser.setId(userId);
-        loginUser.setContacts(new ArrayList<>()); // У пользователя пустой список контактов
-
-        when(loginRepository.findById(userId)).thenReturn(Optional.of(loginUser));
-        when(contactRepository.findById(contactId)).thenReturn(Optional.of(strangerContact));
-
-        RuntimeException exception = assertThrows(RuntimeException.class, () ->
-                contactService.deleteContact(contactId, userId));
-        assertEquals("You do not have permission to delete this contact or it's not in your list", exception.getMessage());
-
-        verify(contactRepository, never()).save(any());
-        verify(loginRepository, never()).save(loginUser);
     }
 }

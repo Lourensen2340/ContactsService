@@ -1,7 +1,7 @@
 package com.yaskondrichin.ContactsService.controller.repo;
 
 import com.yaskondrichin.ContactsService.domain.model.Login;
-import com.yaskondrichin.ContactsService.domain.model.Role;
+import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +10,10 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 
 import java.util.Optional;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -25,7 +27,6 @@ public class LoginRepositoryTest {
 
     @Test
     public void findByLogin_WhenLoginExists_ShouldReturnOptionalWithLogin() {
-        // Создаем объект через пустой конструктор и сеттеры
         Login loginEntity = new Login();
         loginEntity.setLogin("unique_user");
         loginEntity.setPass("pass");
@@ -49,30 +50,38 @@ public class LoginRepositoryTest {
     }
 
     @Test
-    public void findFirstByOrderByIdDesc_ShouldReturnLastSavedRecord() {
-        // Создаем первую запись
+    void findFirstByOrderByIdDesc_ShouldReturnLastSavedRecord() {
+        // 1. Полностью очищаем репозиторий перед тестом
+        loginRepository.deleteAll();
+
+        // 2. Создаем и сохраняем первую запись (ID сгенерируется автоматически)
         Login first = new Login();
-        first.setLogin("first");
-        first.setPass("pass");
+        first.setLogin("firstUser");
+        first.setPass("pass1");
         first.setEmail("first@mail.com");
         first.setPhone("+375291111111");
         first.setRole(Role.USER);
+        first = loginRepository.saveAndFlush(first); // Сохраняем и переприсваиваем объект с ID
 
-        // Создаем вторую запись
+        // 3. Создаем и сохраняем вторую запись (ID сгенерируется автоматически)
         Login second = new Login();
-        second.setLogin("second");
-        second.setPass("pass");
+        second.setLogin("secondUser");
+        second.setPass("pass2");
         second.setEmail("second@mail.com");
         second.setPhone("+375292222222");
         second.setRole(Role.USER);
+        second = loginRepository.saveAndFlush(second); // Сохраняем и переприсваиваем объект с ID
 
-        entityManager.persist(first);
-        entityManager.persist(second);
-        entityManager.flush();
+        // 4. Динамически определяем, какой из сгенерированных UUID больше
+        // Метод findFirstByOrderByIdDesc() обязан вернуть запись именно с максимальным UUID
+        Login expectedMax = first.getId().compareTo(second.getId()) > 0 ? first : second;
 
-        Optional<Login> lastSaved = loginRepository.findFirstByOrderByIdDesc();
+        // 5. Вызываем метод репозитория
+        Optional<Login> result = loginRepository.findFirstByOrderByIdDesc();
 
-        assertTrue(lastSaved.isPresent());
-        assertEquals("second", lastSaved.get().getLogin(), "Метод должен возвращать запись с наибольшим ID");
+        // 6. Проверяем корректность работы сортировки базы данных
+        assertTrue(result.isPresent());
+        assertEquals(expectedMax.getLogin(), result.get().getLogin(),
+                "Метод должен возвращать запись с наибольшим ID согласно сортировке DESC");
     }
 }
