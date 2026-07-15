@@ -2,9 +2,9 @@ package com.yaskondrichin.ContactsService.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yaskondrichin.ContactsService.DTO.AssignRoleDTO;
-import com.yaskondrichin.ContactsService.config.AuthenticatedUserIdResolver;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.AuthenticatedUserIdResolver;
 import com.yaskondrichin.ContactsService.config.JwtProvider;
-import com.yaskondrichin.ContactsService.config.LoggedInUserIdArgumentResolver;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.LoggedInUserIdArgumentResolver;
 import com.yaskondrichin.ContactsService.domain.controller.AdminController;
 import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;

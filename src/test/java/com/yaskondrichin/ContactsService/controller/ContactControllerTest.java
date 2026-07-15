@@ -5,6 +5,8 @@ import com.yaskondrichin.ContactsService.config.JwtProvider;
 import com.yaskondrichin.ContactsService.controller.config.TestSecurityConfig;
 import com.yaskondrichin.ContactsService.domain.controller.ContactController;
 import com.yaskondrichin.ContactsService.service.ContactService;
+import com.yaskondrichin.ContactsService.service.JwtService;
+import com.yaskondrichin.ContactsService.service.impl.JwtServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -39,6 +41,9 @@ public class ContactControllerTest {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    private JwtServiceImpl jwtService;
 
     @MockitoBean
     private org.springframework.security.core.userdetails.UserDetailsService userDetailsService;

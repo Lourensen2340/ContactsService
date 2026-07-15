@@ -8,7 +8,6 @@ import com.yaskondrichin.ContactsService.domain.repo.ContactRepository;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.service.ContactService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

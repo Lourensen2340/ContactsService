@@ -1,14 +1,12 @@
 package com.yaskondrichin.ContactsService.DTO;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.GeneratedValue;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
 import java.util.UUID;
 
 @Data

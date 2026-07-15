@@ -1,6 +1,8 @@
 package com.yaskondrichin.ContactsService.config;
 
 // ВАЖНО: Добавляем импорт интерфейса Spring
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.AuthenticatedUserIdResolver;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.LoggedInUserIdArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

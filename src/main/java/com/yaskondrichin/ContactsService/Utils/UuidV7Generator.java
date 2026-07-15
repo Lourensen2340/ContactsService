@@ -1,4 +1,4 @@
-package com.yaskondrichin.ContactsService.domain.generator;
+package com.yaskondrichin.ContactsService.Utils;
 
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
 import org.hibernate.id.IdentifierGenerator;

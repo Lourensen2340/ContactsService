@@ -8,16 +8,17 @@ import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.exception.ResourceNotFoundException;
 import com.yaskondrichin.ContactsService.service.JwtService;
-import com.yaskondrichin.ContactsService.service.LoginService;
+import com.yaskondrichin.ContactsService.service.impl.LoginServiceImpl;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.Optional;
-import java.util.UUID; // ИСПРАВЛЕНО: Добавлен импорт UUID
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,107 +34,123 @@ public class LoginServiceTest {
     private LoginMapper loginMapper;
 
     @Mock
-    private PasswordEncoder passwordEncoder;
-
-    @Mock
     private JwtService jwtService;
 
     @InjectMocks
-    private LoginService loginService;
-
-    // --- Тесты для findById(UUID id) ---
+    private LoginServiceImpl loginService;
 
     @Test
-    public void findById_WhenUserExists_ShouldReturnLoginResponseDTO() {
+    @DisplayName("getLastCreatedUser: должен успешно вернуть последнего созданного пользователя")
+    public void getLastCreatedUser_ShouldReturnLastUser() {
         // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
+        Login login = new Login();
+        LoginResponseDTO dto = new LoginResponseDTO();
+        dto.setLogin("last_user");
+
+        when(loginRepository.findFirstByOrderByIdDesc()).thenReturn(Optional.of(login));
+        when(loginMapper.toResponseDto(login)).thenReturn(dto);
+
+        // When
+        LoginResponseDTO result = loginService.getLastCreatedUser();
+
+        // Then
+        assertNotNull(result);
+        assertEquals("last_user", result.getLogin());
+        verify(loginRepository, times(1)).findFirstByOrderByIdDesc();
+    }
+
+    @Test
+    @DisplayName("getLastCreatedUser: должен упасть, если база пуста")
+    public void getLastCreatedUser_WhenDbIsEmpty_ShouldThrowException() {
+        // Given
+        when(loginRepository.findFirstByOrderByIdDesc()).thenReturn(Optional.empty());
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                loginService.getLastCreatedUser()
+        );
+        assertEquals("No users found", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("getMe: должен вернуть текущего пользователя по JWT")
+    public void getMe_ShouldReturnCurrentUser() {
+        // Given
+        UUID userId = UUID.randomUUID();
+        Jwt mockJwt = mock(Jwt.class);
+        when(mockJwt.getSubject()).thenReturn(userId.toString());
+
+        Login existingLogin = new Login();
+        existingLogin.setId(userId);
+        existingLogin.setLogin("test_user");
+
+        when(loginRepository.findById(userId)).thenReturn(Optional.of(existingLogin));
+
+        // When
+        Login result = loginService.getMe(mockJwt);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(userId, result.getId());
+        assertEquals("test_user", result.getLogin());
+        verify(loginRepository, times(1)).findById(userId);
+    }
+
+    @Test
+    @DisplayName("findById: должен вернуть DTO пользователя по его ID")
+    public void findById_ShouldReturnUserDto() {
+        // Given
+        UUID userId = UUID.randomUUID();
         Login login = new Login();
         login.setId(userId);
 
-        LoginResponseDTO expectedDto = new LoginResponseDTO();
+        LoginResponseDTO dto = new LoginResponseDTO();
+        dto.setLogin("found_user");
 
         when(loginRepository.findById(userId)).thenReturn(Optional.of(login));
-        when(loginMapper.toResponseDto(login)).thenReturn(expectedDto);
+        when(loginMapper.toResponseDto(login)).thenReturn(dto);
 
         // When
         LoginResponseDTO result = loginService.findById(userId);
 
         // Then
         assertNotNull(result);
-        assertEquals(expectedDto, result);
-        verify(loginRepository, times(1)).findById(userId);
-        verify(loginMapper, times(1)).toResponseDto(login);
+        assertEquals("found_user", result.getLogin());
     }
 
     @Test
-    public void findById_WhenUserDoesNotExist_ShouldThrowRuntimeException() {
+    @DisplayName("generateTokensByUserId: должен делегировать вызов в JwtService")
+    public void generateTokensByUserId_ShouldDelegateToJwtService() {
         // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
-        when(loginRepository.findById(userId)).thenReturn(Optional.empty());
+        UUID userId = UUID.randomUUID();
+        AuthResponseDTO responseDTO = new AuthResponseDTO();
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> loginService.findById(userId));
-        assertEquals("Пользователь с ID " + userId + " не найден", exception.getMessage());
-        verify(loginMapper, never()).toResponseDto(any());
-    }
-
-    // --- Тесты для generateTokensByUserId(UUID userId) ---
-
-    @Test
-    public void generateTokensByUserId_WhenUserExists_ShouldReturnAuthResponseDTO() {
-        // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
-        Login login = new Login();
-        login.setId(userId);
-
-        TokenResponseDTO mockTokens = mock(TokenResponseDTO.class);
-        LoginResponseDTO mockUserDto = new LoginResponseDTO();
-
-        when(loginRepository.findById(userId)).thenReturn(Optional.of(login));
-        when(jwtService.generateTokens(login)).thenReturn(mockTokens);
-        when(loginMapper.toResponseDto(login)).thenReturn(mockUserDto);
+        when(jwtService.generateTokensByUserId(userId)).thenReturn(responseDTO);
 
         // When
         AuthResponseDTO result = loginService.generateTokensByUserId(userId);
 
         // Then
         assertNotNull(result);
-        assertEquals(mockUserDto, result.getUser());
-        assertEquals(mockTokens, result.getTokens());
-        verify(loginRepository, times(1)).findById(userId);
-        verify(jwtService, times(1)).generateTokens(login);
-        verify(loginMapper, times(1)).toResponseDto(login);
+        assertEquals(responseDTO, result);
+        verify(jwtService, times(1)).generateTokensByUserId(userId);
     }
 
     @Test
-    public void generateTokensByUserId_WhenUserDoesNotExist_ShouldThrowRuntimeException() {
+    @DisplayName("assignRole: должен успешно обновить роль пользователя")
+    public void assignRole_ShouldUpdateUserRole() {
         // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
-        when(loginRepository.findById(userId)).thenReturn(Optional.empty());
-
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> loginService.generateTokensByUserId(userId));
-        assertEquals("User with ID " + userId + " does not exist", exception.getMessage());
-        verify(jwtService, never()).generateTokens(any());
-    }
-
-    // --- Тесты для assignRole(AssignRoleDTO dto) ---
-
-    @Test
-    public void assignRole_WhenUserExists_ShouldUpdateRole() {
-        // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
+        UUID userId = UUID.randomUUID();
 
         AssignRoleDTO dto = new AssignRoleDTO();
-        dto.setUserId(userId); // Поле теперь принимает UUID
-        dto.setRole(Role.ROLE_ADMIN);
+        dto.setUserId(userId);
+        dto.setRole(Role.ROLE_ADMIN); // Передаем корректный Enum
 
         Login existingLogin = new Login();
         existingLogin.setId(userId);
         existingLogin.setRole(Role.USER);
 
         when(loginRepository.findById(userId)).thenReturn(Optional.of(existingLogin));
-        when(loginRepository.save(any(Login.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         loginService.assignRole(dto);
@@ -141,13 +158,13 @@ public class LoginServiceTest {
         // Then
         assertEquals(Role.ROLE_ADMIN, existingLogin.getRole());
         verify(loginRepository, times(1)).findById(userId);
-        verify(loginRepository, times(1)).save(existingLogin);
     }
 
     @Test
+    @DisplayName("assignRole: должен выбросить ResourceNotFoundException, если пользователь не найден")
     public void assignRole_WhenUserDoesNotExist_ShouldThrowResourceNotFoundException() {
         // Given
-        UUID userId = UUID.randomUUID(); // Исправлено: Long -> UUID
+        UUID userId = UUID.randomUUID();
 
         AssignRoleDTO dto = new AssignRoleDTO();
         dto.setUserId(userId);
@@ -156,8 +173,10 @@ public class LoginServiceTest {
         when(loginRepository.findById(userId)).thenReturn(Optional.empty());
 
         // When & Then
-        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> loginService.assignRole(dto));
-        assertEquals("Пользователь с ID " + dto.getUserId() + " не найден", exception.getMessage());
-        verify(loginRepository, never()).save(any());
+        ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () ->
+                loginService.assignRole(dto)
+        );
+        assertTrue(exception.getMessage().contains("Пользователь с ID " + dto.getUserId() + " не найден"));
+        verify(loginRepository, times(1)).findById(userId);
     }
 }

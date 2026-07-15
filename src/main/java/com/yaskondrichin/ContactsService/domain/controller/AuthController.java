@@ -74,7 +74,7 @@ public class AuthController {
     }
     @PostMapping("/exchange")
     public ResponseEntity<AuthResponseDTO> exchangeIdForTokens(@RequestParam UUID userId) {
-        AuthResponseDTO response = loginService.generateTokensByUserId(userId);
+        AuthResponseDTO response = jwtService.generateTokensByUserId(userId);
         return ResponseEntity.ok(response);
     }
 

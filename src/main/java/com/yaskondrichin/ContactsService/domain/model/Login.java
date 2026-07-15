@@ -1,5 +1,6 @@
 package com.yaskondrichin.ContactsService.domain.model;
 
+import com.yaskondrichin.ContactsService.Utils.UuidV7Generator;
 import com.yaskondrichin.ContactsService.domain.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -24,7 +25,7 @@ public class Login {
     @GeneratedValue(generator = "UUIDv7")
     @org.hibernate.annotations.GenericGenerator(
             name = "UUIDv7",
-            type = com.yaskondrichin.ContactsService.domain.generator.UuidV7Generator.class
+            type = UuidV7Generator.class
     )
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     @Column(length = 36)
@@ -36,7 +37,7 @@ public class Login {
     @Column(nullable = false)
     private String pass;
 
-    // ДОБАВЬТЕ ЭТО ПОЛЕ:
+
     @Column(unique = true)
     private String email;
 

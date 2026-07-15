@@ -10,13 +10,17 @@ import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.service.AuthService;
 import com.yaskondrichin.ContactsService.service.JwtService;
 import com.yaskondrichin.ContactsService.service.LoginService;
+import com.yaskondrichin.ContactsService.service.impl.JwtServiceImpl;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -27,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -51,8 +56,8 @@ public class AuthControllerTest {
     @MockitoBean
     private LoginRepository loginRepository;
 
-    @MockitoBean
-    private JwtService jwtService;
+//    @MockitoBean
+//    private JwtService jwtService;
 
     @MockitoBean
     private AuthService authService;
@@ -66,22 +71,21 @@ public class AuthControllerTest {
     @MockitoBean
     private LoginMapper loginMapper;
 
-    // Эндпоинт login закомментирован в AuthController, тест тоже комментируем
-    /*
-    @Test
-    public void login_WithValidCredentials_ShouldReturnTokens() throws Exception {
-        ...
-    }
-    */
+    @MockitoBean
+    private JwtServiceImpl jwtServiceImpl;
 
     @Test
+    @DisplayName("Регистрация: должен успешно вернуть данные пользователя, сгенерированный пароль и токены")
     public void registerUser_ShouldReturnTokensDto() throws Exception {
+        // Given
         Login mockUser = new Login();
+        mockUser.setRawPassword("generated-raw-password-123"); // Устанавливаем сырой пароль, т.к. контроллер вызывает getRawPassword()
+
         TokenResponseDTO mockTokens = new TokenResponseDTO("reg-access-token", "reg-refresh-token");
         LoginResponseDTO mockUserDto = new LoginResponseDTO();
 
         when(authService.register(any(RegisterDTO.class))).thenReturn(mockUser);
-        when(jwtService.generateTokens(any(Login.class))).thenReturn(mockTokens);
+        when(jwtServiceImpl.generateTokens(any(Login.class))).thenReturn(mockTokens);
         when(loginMapper.toResponseDto(any(Login.class))).thenReturn(mockUserDto);
 
         String registerJson = """
@@ -92,28 +96,57 @@ public class AuthControllerTest {
         }
         """;
 
+        // When & Then
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerJson)
                         .with(csrf()))
                 .andDo(print())
                 .andExpect(status().isOk())
-                // Токены теперь находятся внутри объекта tokens в AuthResponseDTO
+                .andExpect(jsonPath("$.generatedPassword").value("generated-raw-password-123"))
                 .andExpect(jsonPath("$.tokens.accessToken").value("reg-access-token"))
                 .andExpect(jsonPath("$.tokens.refreshToken").value("reg-refresh-token"));
     }
 
     @Test
+    @DisplayName("Обмен ID на токены: должен вернуть AuthResponseDTO")
     public void exchangeIdForTokens_ShouldReturnAuthResponse() throws Exception {
+        // Given
         AuthResponseDTO mockAuthResponse = new AuthResponseDTO();
+        TokenResponseDTO mockTokens = new TokenResponseDTO("exchange-access", "exchange-refresh");
+        mockAuthResponse.setTokens(mockTokens);
+
         String validUuid = UUID.randomUUID().toString();
 
-        when(loginService.generateTokensByUserId(any(UUID.class))).thenReturn(mockAuthResponse);
+        // ИСПРАВЛЕНО: Заглушка перенаправлена на jwtService вместо loginService в соответствии с AuthController.java
+        when(jwtServiceImpl.generateTokensByUserId(any(UUID.class))).thenReturn(mockAuthResponse);
 
+        // When & Then
         mockMvc.perform(post("/api/v1/auth/exchange")
                         .param("userId", validUuid)
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
                         .with(csrf()))
-                .andExpect(status().isOk());
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokens.accessToken").value("exchange-access"));
+    }
+
+    @Test
+    @DisplayName("Профиль пользователя (me): должен успешно вернуть профиль текущего пользователя на основе JWT")
+    public void getMyProfile_ShouldReturnCurrentUserProfile() throws Exception {
+        // Given
+        Login mockUser = new Login();
+        LoginResponseDTO mockUserDto = new LoginResponseDTO();
+        mockUserDto.setLogin("current_user");
+
+        when(loginService.getMe(any(Jwt.class))).thenReturn(mockUser);
+        when(loginMapper.toResponseDto(any(Login.class))).thenReturn(mockUserDto);
+
+        // When & Then
+        mockMvc.perform(get("/api/v1/auth/me")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.login").value("current_user"));
     }
 }

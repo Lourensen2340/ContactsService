@@ -1,5 +1,6 @@
 package com.yaskondrichin.ContactsService.domain.model;
 
+import com.yaskondrichin.ContactsService.Utils.UuidV7Generator;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -27,7 +28,7 @@ public class Contact {
     @GeneratedValue(generator = "UUIDv7")
     @org.hibernate.annotations.GenericGenerator(
             name = "UUIDv7",
-            type = com.yaskondrichin.ContactsService.domain.generator.UuidV7Generator.class
+            type = UuidV7Generator.class
     )
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.VARCHAR)
     @Column(length = 36)

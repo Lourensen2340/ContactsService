@@ -1,13 +1,12 @@
 package com.yaskondrichin.ContactsService.controller.config;
 
-import com.yaskondrichin.ContactsService.config.AuthenticatedUserIdResolver;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.AuthenticatedUserIdResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;

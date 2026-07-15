@@ -1,63 +1,78 @@
 package com.yaskondrichin.ContactsService.controller.config;
 
-import com.yaskondrichin.ContactsService.config.AuthenticatedUserIdResolver;
-import com.yaskondrichin.ContactsService.config.JwtProvider;
-import com.yaskondrichin.ContactsService.config.LoggedInUserId;
+
+
+import com.yaskondrichin.ContactsService.config.argument_resolver.AuthenticadetUserId;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.AuthenticatedUserIdResolver;
+import com.yaskondrichin.ContactsService.service.impl.JwtServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.MethodParameter;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.NativeWebRequest;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
-public class AuthenticatedUserIdResolverTest {
+@ExtendWith(MockitoExtension.class) // КРИТИЧЕСКИ ВАЖНО: включает поддержку аннотаций Mockito
+class AuthenticatedUserIdResolverTest {
 
     @Mock
-    private JwtProvider jwtProvider;
+    private JwtServiceImpl jwtService; // Создает мок для сервиса токенов
+
+    @Mock
+    private MethodParameter methodParameter; // Создает мок для параметра метода
+
+    @Mock
+    private AuthenticadetUserId authenticadetUserIdMock; // Создает мок для аннотации
+
+    @Mock
+    private NativeWebRequest webRequest; // Создает мок для HTTP-запроса
 
     @InjectMocks
-    private AuthenticatedUserIdResolver resolver;
-    @Transactional
+    private AuthenticatedUserIdResolver resolver; // Автоматически внедряет jwtService внутрь resolver
+
     @Test
-    public void supportsParameter_ValidAnnotationAndType_ShouldReturnTrue() {
-        MethodParameter parameter = Mockito.mock(MethodParameter.class);
-        Mockito.when(parameter.getParameterAnnotation(LoggedInUserId.class)).thenReturn(Mockito.mock(LoggedInUserId.class));
-        Mockito.doReturn(UUID.class).when(parameter).getParameterType();
+    void supportsParameter_ValidAnnotationAndType_ShouldReturnTrue() {
+        // Настройка мока параметра метода
+        when(methodParameter.getParameterAnnotation(AuthenticadetUserId.class))
+                .thenReturn(authenticadetUserIdMock);
+        when(methodParameter.getParameterType())
+                .thenReturn((Class) UUID.class);
 
-        boolean result = resolver.supportsParameter(parameter);
-
+        // Вызов и проверка
+        boolean result = resolver.supportsParameter(methodParameter);
         assertTrue(result);
     }
-    @Transactional
+
     @Test
-    public void resolveArgument_ValidBearerHeader_ShouldReturnUUID() {
-        NativeWebRequest webRequest = Mockito.mock(NativeWebRequest.class);
-        UUID expectedUuid = UUID.randomUUID();
+    void resolveArgument_ValidBearerHeader_ShouldReturnUUID() {
+        // 1. Данные для теста
+        String rawToken = "my-valid-jwt-token";
+        String authHeaderValue = "Bearer " + rawToken;
+        UUID expectedUserId = UUID.randomUUID();
 
-        Mockito.when(webRequest.getHeader("Authorization")).thenReturn("Bearer super-token");
-        Mockito.when(jwtProvider.getUserIdFromToken("super-token", true)).thenReturn(expectedUuid);
+        // 2. Настройка заглушек (Stubbing)
+        // Имитируем получение заголовка Authorization
+        when(webRequest.getHeader("Authorization")).thenReturn(authHeaderValue);
 
-        Object result = resolver.resolveArgument(null, null, webRequest, null);
+        // Имитируем извлечение UUID из токена (jwtService теперь ТОЧНО не null)
+        when(jwtService.getUserIdFromToken(rawToken, true)).thenReturn(expectedUserId);
 
-        assertEquals(expectedUuid, result);
-    }
-    @Transactional
-    @Test
-    public void resolveArgument_NoAuthorizationHeader_ShouldReturnNull() {
-        NativeWebRequest webRequest = Mockito.mock(NativeWebRequest.class);
-        Mockito.when(webRequest.getHeader("Authorization")).thenReturn(null);
+        // 3. Вызов тестируемого метода
+        Object result = resolver.resolveArgument(
+                methodParameter,
+                null,
+                webRequest,
+                null
+        );
 
-        Object result = resolver.resolveArgument(null, null, webRequest, null);
-
-        assertNull(result);
+        // 4. Проверка результата
+        assertEquals(expectedUserId, result);
     }
 }

@@ -1,5 +1,9 @@
-package com.yaskondrichin.ContactsService.config;
+package com.yaskondrichin.ContactsService.config.argument_resolver.impl;
 
+
+import com.yaskondrichin.ContactsService.config.argument_resolver.AuthenticadetUserId;
+import com.yaskondrichin.ContactsService.config.argument_resolver.LoggedInUserId;
+import com.yaskondrichin.ContactsService.service.impl.JwtServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
 import org.springframework.lang.NonNull;
@@ -16,11 +20,11 @@ public class AuthenticatedUserIdResolver implements HandlerMethodArgumentResolve
 
     public static final String AUTHORIZATION = "Authorization";
     public static final String BEARER = "Bearer ";
-    private final JwtProvider jwtProvider;
+    private final JwtServiceImpl jwtService;
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        return parameter.getParameterAnnotation(LoggedInUserId.class) != null
+        return parameter.getParameterAnnotation(AuthenticadetUserId.class) != null
                 && parameter.getParameterType().equals(UUID.class);
     }
 
@@ -36,7 +40,7 @@ public class AuthenticatedUserIdResolver implements HandlerMethodArgumentResolve
         if (authHeader != null && authHeader.startsWith(BEARER)) {
             String token = authHeader.substring(7);
             // Обратите внимание: true передается как обычное значение аргумента, без подсказок среды (isAccessToken:)
-            return jwtProvider.getUserIdFromToken(token, true);
+            return jwtService.getUserIdFromToken(token, true);
         }
 
         return null;

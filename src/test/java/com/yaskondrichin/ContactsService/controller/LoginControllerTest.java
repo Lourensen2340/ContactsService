@@ -8,6 +8,7 @@ import com.yaskondrichin.ContactsService.domain.controller.LoginController;
 import com.yaskondrichin.ContactsService.domain.model.Login;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.service.LoginService;
+import com.yaskondrichin.ContactsService.service.impl.JwtServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,9 @@ public class LoginControllerTest {
 
     @MockitoBean
     private LoginRepository loginRepository;
+
+    @MockitoBean
+    private JwtServiceImpl jwtService;
 
     @MockitoBean
     private org.springframework.security.core.userdetails.UserDetailsService userDetailsService;

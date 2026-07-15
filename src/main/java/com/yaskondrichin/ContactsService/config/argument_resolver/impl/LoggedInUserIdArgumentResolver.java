@@ -1,7 +1,6 @@
-package com.yaskondrichin.ContactsService.config;
+package com.yaskondrichin.ContactsService.config.argument_resolver.impl;
 
-
-
+import com.yaskondrichin.ContactsService.config.argument_resolver.LoggedInUserId;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;

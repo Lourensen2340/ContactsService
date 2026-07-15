@@ -1,4 +1,4 @@
-package com.yaskondrichin.ContactsService.config;
+package com.yaskondrichin.ContactsService.config.argument_resolver;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface LoggedInUserId {
+public @interface AuthenticadetUserId {
 
 }

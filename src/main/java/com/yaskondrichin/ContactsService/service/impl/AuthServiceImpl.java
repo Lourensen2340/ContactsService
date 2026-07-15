@@ -5,12 +5,11 @@ import com.yaskondrichin.ContactsService.domain.model.Login;
 import com.yaskondrichin.ContactsService.domain.enums.Role;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import com.yaskondrichin.ContactsService.service.AuthService;
+import com.yaskondrichin.ContactsService.Utils.PasswordGenerator; // Новый импорт
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -18,16 +17,14 @@ public class AuthServiceImpl implements AuthService {
 
     private final LoginRepository loginRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordGenerator passwordGenerator; // Внедряем генератор из domain.generator
 
     @Override
     @Transactional
     public Login register(RegisterDTO dto) {
-        // 1. Автоматически генерируем случайный безопасный пароль (12 символов)
-        String randomPassword = UUID.randomUUID().toString()
-                .replace("-", "")
-                .substring(0, 12);
+        // 1. Генерируем пароль с помощью нашего доменного генератора
+        String randomPassword = passwordGenerator.generateRandomPassword();
 
-        // Создаем сущность аккаунта
         Login login = new Login();
         login.setLogin(dto.getUsername());
 

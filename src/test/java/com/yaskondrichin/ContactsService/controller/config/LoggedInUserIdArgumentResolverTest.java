@@ -1,7 +1,7 @@
 package com.yaskondrichin.ContactsService.controller.config;
 
-import com.yaskondrichin.ContactsService.config.LoggedInUserId;
-import com.yaskondrichin.ContactsService.config.LoggedInUserIdArgumentResolver;
+import com.yaskondrichin.ContactsService.config.argument_resolver.LoggedInUserId;
+import com.yaskondrichin.ContactsService.config.argument_resolver.impl.LoggedInUserIdArgumentResolver;
 import com.yaskondrichin.ContactsService.domain.model.Login;
 import com.yaskondrichin.ContactsService.domain.repo.LoginRepository;
 import org.junit.jupiter.api.AfterEach;
